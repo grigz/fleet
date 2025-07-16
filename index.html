@@ -96,9 +96,13 @@
                 <div id="active-project-card" class="flex-grow flex flex-col justify-center items-center text-center">
                     <!-- Project card content will be injected here -->
                 </div>
+                <button id="manual-deploy-btn" class="mt-2 w-full bg-green-700 hover:bg-green-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-2 px-2 rounded-lg transition-colors text-sm">Manual Deploy (4 $CU)</button>
             </div>
 
-            <button id="end-day-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">End Day</button>
+            <div class="flex gap-2">
+                <button id="rules-btn" class="w-1/3 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Rules</button>
+                <button id="end-day-btn" class="w-2/3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">End Day</button>
+            </div>
         </div>
 
         <!-- CENTER: CLUSTER MAP -->
@@ -107,7 +111,7 @@
             <div id="cluster-map" class="flex-grow bg-gray-800 rounded-lg p-4 relative grid grid-cols-3 grid-rows-3 gap-4">
                 <!-- Hub in the center -->
                 <div class="col-start-2 row-start-2 flex justify-center items-center">
-                    <div class="w-32 h-32 bg-gray-900 rounded-full flex justify-center items-center text-center font-bold text-lg border-4 border-blue-500">The Hub</div>
+                    <div class="w-40 h-40 bg-gray-900 rounded-full flex justify-center items-center text-center font-bold text-lg border-4 border-blue-500 px-4">Your Kubernetes Fleet</div>
                 </div>
                 <!-- Spokes will be injected here -->
             </div>
@@ -140,11 +144,25 @@
     </div>
 
 <script>
+const GAME_RULES = `
+    <div class="text-left space-y-2">
+        <p>You are the Director of Hybrid Cloud Operations. You have <strong>30 days</strong> to complete <strong>5 projects</strong> while keeping the system stable.</p>
+        <ul class="list-disc list-inside text-sm space-y-1">
+            <li><strong>The Goal:</strong> Complete 5 projects before Day 30, and keep your Stability score above 0.</li>
+            <li><strong>Each Day:</strong> A random <strong>Chaos Event</strong> will occur, creating problems. You will then gain resources ($CU) and draw a card.</li>
+            <li><strong>Actions:</strong> You have <strong>2 Actions</strong> per day to play cards or use the <strong>Manual Deploy</strong> action.</li>
+            <li><strong>Manual Deploy:</strong> For 1 Action and 4 $CU, you can deploy a project requirement without needing a specific card.</li>
+            <li><strong>Projects:</strong> To complete a project, you must deploy its requirements to stable, managed clusters.</li>
+        </ul>
+        <p class="text-center font-bold pt-2">Good luck. You'll need it.</p>
+    </div>
+`;
+
 const cardDefinitions = {
     // Player Deck Cards
     player: [
         // Cluster Cards
-        { name: 'Provision OpenShift', type: 'Cluster', cost: 4, clusterType: 'On-Prem', text: 'Deploy a new OpenShift cluster to the On-Prem Datacenter.' },
+        { name: 'Provision OpenShift', type: 'Cluster', cost: 4, text: 'Deploy OpenShift to any location. Also satisfies a project requirement for that location!' },
         { name: 'Provision EKS', type: 'Cluster', cost: 3, clusterType: 'AWS', text: 'Deploy a new EKS cluster to the AWS region.' },
         { name: 'Provision AKS', type: 'Cluster', cost: 3, clusterType: 'Azure', text: 'Deploy a new AKS cluster to the Azure region.' },
         { name: 'Provision GKE', type: 'Cluster', cost: 3, clusterType: 'GCP', text: 'Deploy a new GKE cluster to the GCP region.' },
@@ -209,7 +227,9 @@ const DOMElements = {
     projects: document.getElementById('projects-display'),
     stabilityBar: document.getElementById('stability-bar'),
     activeProjectCard: document.getElementById('active-project-card'),
+    manualDeployBtn: document.getElementById('manual-deploy-btn'),
     endDayBtn: document.getElementById('end-day-btn'),
+    rulesBtn: document.getElementById('rules-btn'),
     clusterMap: document.getElementById('cluster-map'),
     consoleLog: document.getElementById('console-log'),
     playerHand: document.getElementById('player-hand'),
@@ -289,7 +309,7 @@ function init() {
     renderAll();
     showModal(
         'Welcome to Cluster-Chaos!',
-        `You are the new Director of Hybrid Cloud Operations. You have <strong>30 days</strong> to prove your worth by completing <strong>5 projects</strong> while keeping the system stable.<br><br>Good luck. You'll need it.`,
+        GAME_RULES,
         'Begin Simulation',
         () => {
             hideModal();
@@ -319,6 +339,10 @@ function renderStatusPanel() {
     else DOMElements.stabilityBar.classList.add('bg-red-600');
 
     renderActiveProject();
+    
+    // Update manual deploy button state
+    const canManuallyDeploy = gameState.actions > 0 && gameState.cu >= 4;
+    DOMElements.manualDeployBtn.disabled = !canManuallyDeploy;
 }
 
 function renderActiveProject() {
@@ -326,10 +350,10 @@ function renderActiveProject() {
     if (gameState.activeProject) {
         const project = gameState.activeProject;
         let requirementsHTML = project.requirements.map(req => {
+            // *** CHANGE IS HERE ***
+            // The color is now ONLY dependent on whether the requirement is in the completedReqs array.
             const isComplete = project.completedReqs.includes(req);
-            const cluster = gameState.clusters[req];
-            const hasProjectPart = cluster && cluster.projectPart === project.name;
-            return `<span class="px-2 py-1 rounded ${isComplete && hasProjectPart ? 'bg-green-600' : 'bg-gray-700'}">${req}</span>`;
+            return `<span class="px-2 py-1 rounded ${isComplete ? 'bg-green-600' : 'bg-gray-700'}">${req}</span>`;
         }).join(' ');
 
         container.innerHTML = `
@@ -482,6 +506,38 @@ function onCardClick(cardIndex) {
 function handleCardEffect(card) {
     switch (card.name) {
         case 'Provision OpenShift':
+            promptForUnmanagedLocation('Select a location to deploy OpenShift:', locationId => {
+                const targetCluster = gameState.clusters[locationId];
+                if (targetCluster && !targetCluster.controlled) {
+                    targetCluster.controlled = true;
+                    logToConsole(`OpenShift cluster is now online at ${locationId}.`, 'info');
+
+                    // NEW: Check if this satisfies a project requirement
+                    const project = gameState.activeProject;
+                    if (project && project.requirements.includes(locationId) && !project.completedReqs.includes(locationId)) {
+                        logToConsole(`The new OpenShift cluster at ${locationId} immediately satisfies a project requirement!`, 'action');
+                        
+                        project.completedReqs.push(locationId);
+                        targetCluster.projectPart = project.name;
+
+                        if (gameState.activePolicies.gitops > 0) {
+                            changeStability(5, 'GitOps Standard bonus');
+                        }
+                        
+                        const isComplete = project.requirements.every(req => project.completedReqs.includes(req));
+                        if (isComplete) {
+                            gameState.projectsCompleted++;
+                            changeStability(project.reward.stability, `Project "${project.name}" completed`);
+                            project.requirements.forEach(req => {
+                                if(gameState.clusters[req]) gameState.clusters[req].projectPart = null;
+                            });
+                            drawNewProject();
+                        }
+                    }
+                }
+                renderAll();
+            });
+            break;
         case 'Provision EKS':
         case 'Provision AKS':
         case 'Provision GKE':
@@ -538,6 +594,62 @@ function handleCardEffect(card) {
     }
 }
 
+function onManualDeployClick() {
+    if (gameState.actions <= 0) {
+        logToConsole('No actions remaining this turn.', 'warn');
+        return;
+    }
+    if (gameState.cu < 4) {
+        logToConsole('Not enough $CU for Manual Deployment.', 'warn');
+        return;
+    }
+
+    const project = gameState.activeProject;
+    if (!project) {
+        logToConsole('No active project.', 'warn');
+        return;
+    }
+
+    const validTargets = Object.entries(gameState.clusters)
+        .filter(([id, cluster]) => 
+            cluster.controlled &&
+            cluster.status === 'stable' &&
+            project.requirements.includes(id) &&
+            !project.completedReqs.includes(id)
+        )
+        .map(([id, cluster]) => id);
+
+    if (validTargets.length === 0) {
+        logToConsole('No valid targets for manual deployment. Ensure a required cluster is controlled and stable.', 'warn');
+        return;
+    }
+
+    let buttonsHTML = validTargets.map(id => 
+        `<button class="bg-green-600 hover:bg-green-700 p-2 rounded" data-id="${id}">${id}</button>`
+    ).join('');
+
+    showModal(
+        'Manual Deployment Target',
+        `Select a target location to deploy a project requirement. This will cost 1 Action and 4 $CU.<br><div class="flex flex-wrap gap-2 justify-center mt-4">${buttonsHTML}</div>`,
+        'Cancel',
+        hideModal
+    );
+
+    DOMElements.modal.content.querySelectorAll('button[data-id]').forEach(btn => {
+        btn.onclick = () => {
+            const locationId = btn.dataset.id;
+            
+            gameState.actions--;
+            gameState.cu -= 4;
+            logToConsole(`Manually deploying project requirement to ${locationId}.`, 'action');
+            
+            deployProjectRequirement(locationId);
+            hideModal();
+        };
+    });
+}
+
+
 function deployProjectRequirement(locationId) {
     const project = gameState.activeProject;
     const cluster = gameState.clusters[locationId];
@@ -578,7 +690,7 @@ function deployProjectRequirement(locationId) {
         gameState.projectsCompleted++;
         changeStability(project.reward.stability, `Project "${project.name}" completed`);
         project.requirements.forEach(req => {
-            gameState.clusters[req].projectPart = null;
+            if(gameState.clusters[req]) gameState.clusters[req].projectPart = null;
         });
         drawNewProject();
     }
@@ -617,6 +729,37 @@ function promptForTarget(promptText, callback) {
         };
     });
 }
+
+function promptForUnmanagedLocation(promptText, callback) {
+    const unmanagedLocations = Object.entries(gameState.clusters)
+        .filter(([id, cluster]) => !cluster.controlled)
+        .map(([id, cluster]) => id);
+
+    if (unmanagedLocations.length === 0) {
+        logToConsole('No unmanaged locations available to deploy OpenShift.', 'warn');
+        return;
+    }
+
+    let buttonsHTML = unmanagedLocations.map(id => 
+        `<button class="bg-blue-500 hover:bg-blue-600 p-2 rounded" data-id="${id}">${id}</button>`
+    ).join('');
+
+    showModal(
+        promptText,
+        `<div class="flex flex-wrap gap-2 justify-center">${buttonsHTML}</div>`,
+        'Cancel',
+        hideModal
+    );
+
+    DOMElements.modal.content.querySelectorAll('button[data-id]').forEach(btn => {
+        btn.onclick = () => {
+            const locationId = btn.dataset.id;
+            callback(locationId);
+            hideModal();
+        };
+    });
+}
+
 
 function showFleetObservabilityModal() {
     const topCards = gameState.chaosDeck.slice(-3);
@@ -796,9 +939,16 @@ function handleChaosEvent(event) {
             if (clustersWithProjects.length > 0) {
                 const [id, cluster] = clustersWithProjects[Math.floor(Math.random() * clustersWithProjects.length)];
                 const projectName = cluster.projectPart;
-                const project = gameState.activeProject.name === projectName ? gameState.activeProject : null; // simplified check
-                if (project) {
-                    project.completedReqs = project.completedReqs.filter(r => r !== id);
+                
+                // Find the project this part belongs to, even if it's not the active one (though it should be)
+                let projectToUpdate = gameState.activeProject;
+                if (!projectToUpdate || projectToUpdate.name !== projectName) {
+                    // This case is unlikely but good to handle. In this simulation, we only care about the active project.
+                    projectToUpdate = null;
+                }
+
+                if (projectToUpdate) {
+                    projectToUpdate.completedReqs = projectToUpdate.completedReqs.filter(r => r !== id);
                     gameState.clusters[id].projectPart = null;
                     logToConsole(`A deployment failed at ${id}, rolling back progress on "${projectName}".`, 'warn');
                 }
@@ -850,6 +1000,11 @@ function checkGameOver() {
 
 // --- EVENT LISTENERS ---
 DOMElements.endDayBtn.addEventListener('click', nextTurn);
+DOMElements.rulesBtn.addEventListener('click', () => {
+    showModal('Game Rules', GAME_RULES, 'Close', hideModal);
+});
+DOMElements.manualDeployBtn.addEventListener('click', onManualDeployClick);
+
 
 // --- INITIALIZE GAME ---
 document.addEventListener('DOMContentLoaded', init);
