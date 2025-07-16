@@ -90,13 +90,20 @@
                     <div id="stability-bar" class="bg-blue-600 h-6 rounded-full text-center text-white font-bold text-sm transition-all duration-500" style="width: 100%;">100</div>
                 </div>
             </div>
+            
+            <div>
+                <p class="text-sm text-gray-400 text-center mb-1">Technical Debt</p>
+                 <div class="w-full bg-gray-700 rounded-full h-6">
+                    <div id="tech-debt-bar" class="bg-red-800 h-6 rounded-full text-center text-white font-bold text-sm transition-all duration-500" style="width: 0%;">0</div>
+                </div>
+            </div>
 
             <div id="active-project-container" class="bg-gray-900 rounded-lg p-3 flex-grow flex flex-col">
                 <h3 class="text-lg font-bold text-center mb-2">Active Project</h3>
                 <div id="active-project-card" class="flex-grow flex flex-col justify-center items-center text-center">
                     <!-- Project card content will be injected here -->
                 </div>
-                <button id="manual-deploy-btn" class="mt-2 w-full bg-green-700 hover:bg-green-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-2 px-2 rounded-lg transition-colors text-sm">Manual Deploy (4 $CU)</button>
+                <button id="manual-deploy-btn" class="mt-2 w-full bg-green-700 hover:bg-green-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-2 px-2 rounded-lg transition-colors text-sm">Manual Deploy (3 $CU)</button>
             </div>
 
             <div class="flex gap-2">
@@ -138,7 +145,7 @@
     <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center modal-hidden">
         <div id="modal-content" class="bg-gray-800 rounded-lg p-8 max-w-lg text-center transform">
             <h2 id="modal-title" class="text-2xl font-bold mb-4"></h2>
-            <p id="modal-text" class="text-gray-300 mb-6"></p>
+            <div id="modal-text" class="text-gray-300 mb-6"></div>
             <button id="modal-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Start Game</button>
         </div>
     </div>
@@ -149,10 +156,11 @@ const GAME_RULES = `
         <p>You are the Director of Hybrid Cloud Operations. You have <strong>30 days</strong> to complete <strong>5 projects</strong> while keeping the system stable.</p>
         <ul class="list-disc list-inside text-sm space-y-1">
             <li><strong>The Goal:</strong> Complete 5 projects before Day 30, and keep your Stability score above 0.</li>
-            <li><strong>Each Day:</strong> A random <strong>Chaos Event</strong> will occur, creating problems. You will then gain resources ($CU) and draw a card.</li>
+            <li><strong>Each Day:</strong> A random <strong>Chaos Event</strong> will occur. You will then gain resources ($CU) and draw a card.</li>
             <li><strong>Actions:</strong> You have <strong>2 Actions</strong> per day to play cards or use the <strong>Manual Deploy</strong> action.</li>
-            <li><strong>Manual Deploy:</strong> For 1 Action and 4 $CU, you can deploy a project requirement without needing a specific card.</li>
-            <li><strong>Projects:</strong> To complete a project, you must deploy its requirements to stable, managed clusters.</li>
+            <li><strong>Manual Deploy:</strong> For 1 Action and 3 $CU, you can deploy a project requirement without a card. This adds <strong>1 Tech Debt</strong>.</li>
+            <li><strong>Technical Debt:</strong> Each point causes 1 Stability loss per day. Use the 'Refactor' card to clear it.</li>
+            <li><strong>Policies:</strong> Powerful policy cards have a 1 $CU upkeep cost each day.</li>
         </ul>
         <p class="text-center font-bold pt-2">Good luck. You'll need it.</p>
     </div>
@@ -162,7 +170,7 @@ const cardDefinitions = {
     // Player Deck Cards
     player: [
         // Cluster Cards
-        { name: 'Provision OpenShift', type: 'Cluster', cost: 4, text: 'Deploy OpenShift to any location. Also satisfies a project requirement for that location!' },
+        { name: 'Provision OpenShift', type: 'Cluster', cost: 4, text: 'Deploy a new OpenShift cluster to any unmanaged location.' },
         { name: 'Provision EKS', type: 'Cluster', cost: 3, clusterType: 'AWS', text: 'Deploy a new EKS cluster to the AWS region.' },
         { name: 'Provision AKS', type: 'Cluster', cost: 3, clusterType: 'Azure', text: 'Deploy a new AKS cluster to the Azure region.' },
         { name: 'Provision GKE', type: 'Cluster', cost: 3, clusterType: 'GCP', text: 'Deploy a new GKE cluster to the GCP region.' },
@@ -175,28 +183,29 @@ const cardDefinitions = {
         { name: 'Disaster Recovery', type: 'Action', cost: 3, text: 'Play immediately after a Chaos Event damages a cluster to negate its effects and gain 5 Stability.' },
         { name: 'Scale Up', type: 'Action', cost: 0, text: 'Gain 3 $CU immediately. A quick budget injection.' },
         { name: 'Expert Consultation', type: 'Action', cost: 2, text: 'Draw 2 cards. A fresh perspective.' },
+        { name: 'Refactor & Automate', type: 'Action', cost: 5, text: 'Pay down your technical debt. Resets Tech Debt to 0.' },
 
         // Policy Cards
-        { name: 'Implement GitOps Standard', type: 'Policy', cost: 3, text: 'For the next 5 turns, gain +5 Stability when you deploy a project requirement.' },
-        { name: 'Standardize Security Posture', type: 'Policy', cost: 4, text: 'The Stability loss from all future "Security Vulnerability" events is halved.' },
-        { name: 'Automated Auditing', type: 'Policy', cost: 3, text: 'At the end of your turn, if you have no clusters with negative statuses, gain +3 Stability.' },
+        { name: 'Implement GitOps Standard', type: 'Policy', cost: 3, upkeep: 1, text: 'For the next 5 turns, gain +5 Stability when you deploy a project requirement. Costs 1 $CU upkeep per turn.' },
+        { name: 'Standardize Security Posture', type: 'Policy', cost: 4, upkeep: 1, text: 'Stability loss from "Security Vulnerability" events is halved. Costs 1 $CU upkeep per turn.' },
+        { name: 'Automated Auditing', type: 'Policy', cost: 3, upkeep: 1, text: 'At the end of your turn, if you have no clusters with negative statuses, gain +3 Stability. Costs 1 $CU upkeep per turn.' },
     ],
 
     // Project Cards
     projects: [
-        { name: 'Deploy New CRM Platform', requirements: ['GCP', 'On-Prem'], reward: { stability: 15 } },
-        { name: 'Migrate Legacy Database', requirements: ['AWS', 'On-Prem'], reward: { stability: 15 } },
-        { name: 'Launch E-Commerce Site', requirements: ['AWS', 'Azure'], reward: { stability: 15 } },
-        { name: 'Retail Store IoT Rollout', requirements: ['Edge Site 1', 'Edge Site 2'], reward: { stability: 20 } },
-        { name: 'AI/ML Analytics Engine', requirements: ['GCP', 'AWS'], reward: { stability: 20 } },
-        { name: 'Internal DevOps Platform', requirements: ['On-Prem', 'Azure'], reward: { stability: 15 } },
-        { name: 'Supply Chain Tracker', requirements: ['Edge Site 1', 'On-Prem'], reward: { stability: 15 } },
+        { id: 'crm', name: 'Deploy New CRM Platform', requirements: ['GCP', 'On-Prem'], reward: { stability: 15 } },
+        { id: 'db', name: 'Migrate Legacy Database', requirements: ['AWS', 'On-Prem'], reward: { stability: 15 } },
+        { id: 'ecom', name: 'Launch E-Commerce Site', requirements: ['AWS', 'Azure'], reward: { stability: 15 } },
+        { id: 'iot', name: 'Retail Store IoT Rollout', requirements: ['Edge Site 1', 'Edge Site 2'], reward: { stability: 20 } },
+        { id: 'ai', name: 'AI/ML Analytics Engine', requirements: ['GCP', 'AWS'], reward: { stability: 20 } },
+        { id: 'devops', name: 'Internal DevOps Platform', requirements: ['On-Prem', 'Azure'], reward: { stability: 15 } },
+        { id: 'supply', name: 'Supply Chain Tracker', requirements: ['Edge Site 1', 'On-Prem'], reward: { stability: 15 } },
     ],
     
     // Chaos Event Cards
     chaos: [
         { name: 'Configuration Drift!', type: 'Chaos', text: 'A random cluster is now drifting. Stability drops by 2 each turn until fixed with "GitOps Rollout".', effect: 'drift' },
-        { name: 'Security Vulnerability!', type: 'Chaos', text: 'Major CVE announced. Pay 3 $CU for emergency patching or lose 20 Stability.', effect: 'vulnerability' },
+        { name: 'Security Vulnerability!', type: 'Chaos', text: 'Major CVE announced. You must choose how to respond.', effect: 'vulnerability' },
         { name: 'Expired Certs!', type: 'Chaos', text: 'A random cluster is offline. It produces no resources until you pay 2 $CU to fix.', effect: 'certs' },
         { name: 'Network Outage!', type: 'Chaos', text: 'A random cluster produces no $CU next turn.', effect: 'outage' },
         { name: 'Sudden Budget Cut!', type: 'Chaos', text: 'The CFO strikes! Lose half of your current $CU, rounded down.', effect: 'budget_cut' },
@@ -205,7 +214,12 @@ const cardDefinitions = {
         { name: 'A Moment of Calm', type: 'Chaos', text: 'A rare quiet day. Gain 5 Stability.', effect: 'calm' },
         { name: 'A Moment of Calm', type: 'Chaos', text: 'A rare quiet day. Gain 5 Stability.', effect: 'calm' },
         { name: 'Failed Deployment', type: 'Chaos', text: 'A random cluster with a deployed project part goes offline. The project part is removed.', effect: 'failed_deployment' },
-    ]
+    ],
+    
+    // Day 2 Ops Chaos Cards (added dynamically)
+    day2: {
+        ecom: { name: 'Unexpected Traffic Spike!', type: 'Chaos', text: 'Your E-Commerce site is overwhelmed! Pay 4 $CU to scale up its cluster or lose 25 Stability.', effect: 'day2_ecom' },
+    }
 };
 
 const clusterLocations = [
@@ -226,6 +240,7 @@ const DOMElements = {
     cu: document.getElementById('cu-display'),
     projects: document.getElementById('projects-display'),
     stabilityBar: document.getElementById('stability-bar'),
+    techDebtBar: document.getElementById('tech-debt-bar'),
     activeProjectCard: document.getElementById('active-project-card'),
     manualDeployBtn: document.getElementById('manual-deploy-btn'),
     endDayBtn: document.getElementById('end-day-btn'),
@@ -278,31 +293,31 @@ function init() {
         cu: 5,
         stability: 100,
         maxStability: 100,
+        techDebt: 0,
+        maxTechDebt: 20,
         actions: 2,
         maxActions: 2,
         projectsCompleted: 0,
         targetProjects: 5,
         hand: [],
         handLimit: 5,
-        playerDeck: shuffle([...cardDefinitions.player, ...cardDefinitions.player]), // Double the deck for more variety
+        playerDeck: shuffle([...cardDefinitions.player, ...cardDefinitions.player]),
         projectsDeck: shuffle([...cardDefinitions.projects]),
         chaosDeck: shuffle([...cardDefinitions.chaos, ...cardDefinitions.chaos]),
         activeProject: null,
-        clusters: {}, // Keyed by location ID
-        activePolicies: {}, // e.g., { gitops: 5, security: true }
+        clusters: {},
+        activePolicies: {},
         gameOver: false,
     };
 
-    // Initialize clusters
     clusterLocations.forEach(loc => {
         gameState.clusters[loc.id] = {
             controlled: false,
-            status: 'stable', // stable, drift, certs, outage
+            status: 'stable',
             projectPart: null,
         };
     });
     
-    // Draw initial cards
     drawPlayerCard(3);
     drawNewProject();
 
@@ -338,10 +353,13 @@ function renderStatusPanel() {
     else if (stabilityPercent > 30) DOMElements.stabilityBar.classList.add('bg-yellow-500');
     else DOMElements.stabilityBar.classList.add('bg-red-600');
 
+    const techDebtPercent = (gameState.techDebt / gameState.maxTechDebt) * 100;
+    DOMElements.techDebtBar.style.width = `${techDebtPercent}%`;
+    DOMElements.techDebtBar.textContent = gameState.techDebt;
+
     renderActiveProject();
     
-    // Update manual deploy button state
-    const canManuallyDeploy = gameState.actions > 0 && gameState.cu >= 4;
+    const canManuallyDeploy = gameState.actions > 0 && gameState.cu >= 3;
     DOMElements.manualDeployBtn.disabled = !canManuallyDeploy;
 }
 
@@ -350,8 +368,6 @@ function renderActiveProject() {
     if (gameState.activeProject) {
         const project = gameState.activeProject;
         let requirementsHTML = project.requirements.map(req => {
-            // *** CHANGE IS HERE ***
-            // The color is now ONLY dependent on whether the requirement is in the completedReqs array.
             const isComplete = project.completedReqs.includes(req);
             return `<span class="px-2 py-1 rounded ${isComplete ? 'bg-green-600' : 'bg-gray-700'}">${req}</span>`;
         }).join(' ');
@@ -369,7 +385,6 @@ function renderActiveProject() {
 
 function renderClusterMap() {
     const map = DOMElements.clusterMap;
-    // Clear existing spokes but not the hub
     map.querySelectorAll('.cluster-spoke').forEach(el => el.remove());
 
     clusterLocations.forEach(loc => {
@@ -487,16 +502,11 @@ function onCardClick(cardIndex) {
         return;
     }
 
-    // Use an action and CU
     gameState.actions--;
     gameState.cu -= card.cost;
-    
-    // Remove card from hand
     gameState.hand.splice(cardIndex, 1);
-    
     logToConsole(`Played card: ${card.name}.`, 'action');
     
-    // Card specific logic
     handleCardEffect(card);
 
     renderAll();
@@ -511,29 +521,6 @@ function handleCardEffect(card) {
                 if (targetCluster && !targetCluster.controlled) {
                     targetCluster.controlled = true;
                     logToConsole(`OpenShift cluster is now online at ${locationId}.`, 'info');
-
-                    // NEW: Check if this satisfies a project requirement
-                    const project = gameState.activeProject;
-                    if (project && project.requirements.includes(locationId) && !project.completedReqs.includes(locationId)) {
-                        logToConsole(`The new OpenShift cluster at ${locationId} immediately satisfies a project requirement!`, 'action');
-                        
-                        project.completedReqs.push(locationId);
-                        targetCluster.projectPart = project.name;
-
-                        if (gameState.activePolicies.gitops > 0) {
-                            changeStability(5, 'GitOps Standard bonus');
-                        }
-                        
-                        const isComplete = project.requirements.every(req => project.completedReqs.includes(req));
-                        if (isComplete) {
-                            gameState.projectsCompleted++;
-                            changeStability(project.reward.stability, `Project "${project.name}" completed`);
-                            project.requirements.forEach(req => {
-                                if(gameState.clusters[req]) gameState.clusters[req].projectPart = null;
-                            });
-                            drawNewProject();
-                        }
-                    }
                 }
                 renderAll();
             });
@@ -548,12 +535,10 @@ function handleCardEffect(card) {
                 logToConsole(`${card.clusterType} cluster is now online and managed.`, 'info');
             } else {
                 logToConsole(`Cannot provision cluster at ${card.clusterType}. Location is already managed.`, 'warn');
-                // Refund for failed action
                 gameState.cu += card.cost;
             }
             break;
         case 'GitOps Rollout':
-            // This card is powerful and needs a target
             promptForTarget('Select a cluster to apply GitOps Rollout:', cluster => {
                 if (cluster.status === 'drift') {
                     cluster.status = 'stable';
@@ -564,12 +549,14 @@ function handleCardEffect(card) {
                 renderAll();
             });
             break;
+        case 'Refactor & Automate':
+            gameState.techDebt = 0;
+            logToConsole('Massive refactoring effort completed. Technical Debt is reset to 0!', 'action');
+            break;
         case 'Fleet Observability':
-            // Special UI for this
             showFleetObservabilityModal();
             break;
         case 'Disaster Recovery':
-            // This is a reactive card, but for single player, let's make it proactive
             gameState.activePolicies.disasterRecovery = true;
             logToConsole('Disaster Recovery plan is active. The next damaging Chaos Event will be negated.', 'info');
             break;
@@ -580,15 +567,15 @@ function handleCardEffect(card) {
             drawPlayerCard(2);
             break;
         case 'Implement GitOps Standard':
-            gameState.activePolicies.gitops = 5; // Lasts 5 turns
+            gameState.activePolicies.gitops = { turns: 5, upkeep: card.upkeep };
             logToConsole('GitOps Standard policy active.', 'info');
             break;
         case 'Standardize Security Posture':
-            gameState.activePolicies.security = true;
+            gameState.activePolicies.security = { upkeep: card.upkeep };
             logToConsole('Security Posture policy active.', 'info');
             break;
         case 'Automated Auditing':
-            gameState.activePolicies.auditing = true;
+            gameState.activePolicies.auditing = { upkeep: card.upkeep };
             logToConsole('Automated Auditing policy active.', 'info');
             break;
     }
@@ -599,7 +586,7 @@ function onManualDeployClick() {
         logToConsole('No actions remaining this turn.', 'warn');
         return;
     }
-    if (gameState.cu < 4) {
+    if (gameState.cu < 3) {
         logToConsole('Not enough $CU for Manual Deployment.', 'warn');
         return;
     }
@@ -630,7 +617,7 @@ function onManualDeployClick() {
 
     showModal(
         'Manual Deployment Target',
-        `Select a target location to deploy a project requirement. This will cost 1 Action and 4 $CU.<br><div class="flex flex-wrap gap-2 justify-center mt-4">${buttonsHTML}</div>`,
+        `Select a target location to deploy a project requirement. This will cost 1 Action and 3 $CU, and add 1 Tech Debt.<br><div class="flex flex-wrap gap-2 justify-center mt-4">${buttonsHTML}</div>`,
         'Cancel',
         hideModal
     );
@@ -640,8 +627,9 @@ function onManualDeployClick() {
             const locationId = btn.dataset.id;
             
             gameState.actions--;
-            gameState.cu -= 4;
-            logToConsole(`Manually deploying project requirement to ${locationId}.`, 'action');
+            gameState.cu -= 3;
+            gameState.techDebt++;
+            logToConsole(`Manually deploying project requirement to ${locationId}. Tech Debt increases.`, 'action');
             
             deployProjectRequirement(locationId);
             hideModal();
@@ -654,41 +642,39 @@ function deployProjectRequirement(locationId) {
     const project = gameState.activeProject;
     const cluster = gameState.clusters[locationId];
 
-    if (!project) {
-        logToConsole('No active project to deploy.', 'warn');
+    if (!project || !cluster || !cluster.controlled || cluster.status !== 'stable' || !project.requirements.includes(locationId) || project.completedReqs.includes(locationId)) {
+        logToConsole(`Deployment to ${locationId} failed validation.`, 'warn');
         return;
     }
-    if (!cluster || !cluster.controlled) {
-        logToConsole(`Cannot deploy to ${locationId}, it is not a managed cluster.`, 'warn');
-        return;
-    }
-    if (cluster.status !== 'stable') {
-        logToConsole(`Cannot deploy to ${locationId}, cluster is not stable.`, 'warn');
-        return;
-    }
-    if (!project.requirements.includes(locationId)) {
-        logToConsole(`This project does not have a requirement for ${locationId}.`, 'warn');
-        return;
-    }
-    if (project.completedReqs.includes(locationId)) {
-        logToConsole(`Requirement for ${locationId} is already complete.`, 'warn');
-        return;
-    }
-
-    // Success
+    
     logToConsole(`Deploying project "${project.name}" to ${locationId}.`, 'action');
+    completeProjectRequirement(locationId);
+}
+
+function completeProjectRequirement(locationId) {
+    const project = gameState.activeProject;
+    const cluster = gameState.clusters[locationId];
+
     project.completedReqs.push(locationId);
     cluster.projectPart = project.name;
 
-    if (gameState.activePolicies.gitops > 0) {
+    if (gameState.activePolicies.gitops) {
         changeStability(5, 'GitOps Standard bonus');
     }
     
-    // Check for project completion
     const isComplete = project.requirements.every(req => project.completedReqs.includes(req));
     if (isComplete) {
         gameState.projectsCompleted++;
         changeStability(project.reward.stability, `Project "${project.name}" completed`);
+        
+        // Add Day 2 Ops card to deck
+        if (cardDefinitions.day2[project.id]) {
+            const day2Card = cardDefinitions.day2[project.id];
+            gameState.chaosDeck.push(day2Card);
+            gameState.chaosDeck = shuffle(gameState.chaosDeck);
+            logToConsole(`Day 2 Ops begin for "${project.name}". A new challenge has been added to the Chaos Deck!`, 'warn');
+        }
+
         project.requirements.forEach(req => {
             if(gameState.clusters[req]) gameState.clusters[req].projectPart = null;
         });
@@ -699,7 +685,6 @@ function deployProjectRequirement(locationId) {
 }
 
 function promptForTarget(promptText, callback) {
-    // A simple implementation using a modal
     const validClusters = Object.entries(gameState.clusters)
         .filter(([id, cluster]) => cluster.controlled)
         .map(([id, cluster]) => id);
@@ -788,7 +773,7 @@ function showFleetObservabilityModal() {
             const cardIndexInDeck = gameState.chaosDeck.length - 3 + cardIndexInTop3;
             
             const [cardToMove] = gameState.chaosDeck.splice(cardIndexInDeck, 1);
-            gameState.chaosDeck.unshift(cardToMove); // Add to bottom (front of array)
+            gameState.chaosDeck.unshift(cardToMove);
             
             logToConsole(`Averted a potential "${cardToMove.name}" event through superior observability.`, 'action');
             hideModal();
@@ -802,19 +787,37 @@ function nextTurn() {
     if (gameState.gameOver) return;
 
     // --- 1. PRE-TURN PHASE: Update lingering effects ---
-    Object.values(gameState.clusters).forEach(cluster => {
-        if (cluster.status === 'drift') {
-            changeStability(-2, 'Configuration Drift');
-        }
+    if (gameState.techDebt > 0) {
+        changeStability(-gameState.techDebt, `Technical Debt`);
+    }
+
+    let upkeepCost = 0;
+    Object.values(gameState.activePolicies).forEach(policy => {
+        if (policy.upkeep) upkeepCost += policy.upkeep;
     });
+
+    if (upkeepCost > 0) {
+        if (gameState.cu >= upkeepCost) {
+            gameState.cu -= upkeepCost;
+            logToConsole(`Paid ${upkeepCost} $CU for policy upkeep.`, 'info');
+        } else {
+            logToConsole(`Not enough $CU for policy upkeep! All policies deactivated.`, 'warn');
+            gameState.activePolicies = {};
+        }
+    }
+
     if(gameState.activePolicies.auditing) {
         const hasBadStatus = Object.values(gameState.clusters).some(c => c.controlled && c.status !== 'stable');
         if (!hasBadStatus) {
             changeStability(3, 'Automated Auditing bonus');
         }
     }
-    if (gameState.activePolicies.gitops > 0) {
-        gameState.activePolicies.gitops--;
+    if (gameState.activePolicies.gitops) {
+        gameState.activePolicies.gitops.turns--;
+        if (gameState.activePolicies.gitops.turns <= 0) {
+            delete gameState.activePolicies.gitops;
+            logToConsole('GitOps Standard policy has expired.', 'info');
+        }
     }
 
 
@@ -830,12 +833,12 @@ function nextTurn() {
     }
 
     // --- 3. RESOURCE PHASE ---
-    let cuGained = 3;
+    let cuGained = 4; // Increased base CU gain
     Object.values(gameState.clusters).forEach(cluster => {
         if (cluster.controlled && cluster.status !== 'certs' && cluster.status !== 'outage') {
             cuGained++;
         }
-        if (cluster.status === 'outage') { // Outage only lasts one turn
+        if (cluster.status === 'outage') {
             cluster.status = 'stable';
         }
     });
@@ -844,7 +847,6 @@ function nextTurn() {
     
     drawPlayerCard(1);
     
-    // --- 4. ACTION PHASE RESET ---
     gameState.actions = gameState.maxActions;
 
     renderAll();
@@ -856,7 +858,7 @@ function handleChaosEvent(event) {
     logToConsole(event.text, 'chaos');
 
     if (gameState.activePolicies.disasterRecovery) {
-        if (['drift', 'vulnerability', 'certs', 'failed_deployment'].includes(event.effect)) {
+        if (['drift', 'vulnerability', 'certs', 'failed_deployment', 'day2_ecom'].includes(event.effect)) {
             logToConsole('Disaster Recovery plan activated! The event is negated.', 'action');
             changeStability(5, 'Disaster Recovery');
             gameState.activePolicies.disasterRecovery = false;
@@ -885,23 +887,46 @@ function handleChaosEvent(event) {
                 stabilityLoss /= 2;
                 logToConsole('Security Posture policy reduces stability loss.', 'info');
             }
-            if (gameState.cu >= 3) {
-                gameState.cu -= 3;
-                logToConsole('Paid 3 $CU for emergency patching.', 'action');
-            } else {
-                changeStability(-stabilityLoss, 'Security Vulnerability');
-            }
+            
+            const modalText = `
+                <div class="text-left space-y-4">
+                    <p>A major CVE was announced. How do you respond?</p>
+                    <button class="w-full bg-blue-600 hover:bg-blue-700 p-2 rounded" id="vulnerability-option-1">
+                        <strong>Apply Official Patch:</strong> Cost 3 $CU.
+                    </button>
+                    <button class="w-full bg-yellow-600 hover:bg-yellow-700 p-2 rounded" id="vulnerability-option-2">
+                        <strong>Isolate System:</strong> Cost 0 $CU. A random cluster goes offline for 2 turns.
+                    </button>
+                </div>`;
+            showModal('Security Vulnerability!', modalText, 'Decide Later', hideModal);
+
+            document.getElementById('vulnerability-option-1').onclick = () => {
+                if (gameState.cu >= 3) {
+                    gameState.cu -= 3;
+                    logToConsole('Paid 3 $CU for emergency patching.', 'action');
+                } else {
+                    logToConsole('Not enough $CU for patch, forced to take stability hit.', 'warn');
+                    changeStability(-stabilityLoss, 'Security Vulnerability');
+                }
+                renderAll();
+                hideModal();
+            };
+            document.getElementById('vulnerability-option-2').onclick = () => {
+                if (targetCluster) {
+                    gameState.clusters[targetCluster.id].status = 'certs'; // Re-using certs status for simplicity
+                    logToConsole(`${targetCluster.id} isolated for 2 turns to contain vulnerability.`, 'warn');
+                } else {
+                    logToConsole('No managed clusters to isolate.', 'info');
+                }
+                renderAll();
+                hideModal();
+            };
             break;
         case 'certs':
             if (targetCluster) {
                 targetCluster.status = 'certs';
                 gameState.clusters[targetCluster.id].status = 'certs';
-                // Simple manual fix for this one
-                showModal(
-                    'Expired Certificates!',
-                    `The cluster at ${targetCluster.id} is offline due to expired certs. Pay 2 $CU to fix it now?`,
-                    'Pay 2 $CU',
-                    () => {
+                showModal('Expired Certificates!', `The cluster at ${targetCluster.id} is offline. Pay 2 $CU to fix it now?`, 'Pay 2 $CU', () => {
                         if (gameState.cu >= 2) {
                             gameState.cu -= 2;
                             gameState.clusters[targetCluster.id].status = 'stable';
@@ -939,14 +964,10 @@ function handleChaosEvent(event) {
             if (clustersWithProjects.length > 0) {
                 const [id, cluster] = clustersWithProjects[Math.floor(Math.random() * clustersWithProjects.length)];
                 const projectName = cluster.projectPart;
-                
-                // Find the project this part belongs to, even if it's not the active one (though it should be)
                 let projectToUpdate = gameState.activeProject;
                 if (!projectToUpdate || projectToUpdate.name !== projectName) {
-                    // This case is unlikely but good to handle. In this simulation, we only care about the active project.
                     projectToUpdate = null;
                 }
-
                 if (projectToUpdate) {
                     projectToUpdate.completedReqs = projectToUpdate.completedReqs.filter(r => r !== id);
                     gameState.clusters[id].projectPart = null;
@@ -954,8 +975,15 @@ function handleChaosEvent(event) {
                 }
             }
             break;
+        case 'day2_ecom':
+            if (gameState.cu >= 4) {
+                gameState.cu -= 4;
+                logToConsole('Paid 4 $CU to handle the traffic spike on the E-Commerce site.', 'action');
+            } else {
+                changeStability(-25, 'E-Commerce Site Overwhelmed');
+            }
+            break;
     }
-    // Reset max actions if it was changed
     if (event.effect !== 'meeting') {
         gameState.maxActions = 2;
     }
