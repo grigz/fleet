@@ -1,1035 +1,1039 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cluster-Chaos: The ACM Simulation</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #111827; /* bg-gray-900 */
-            color: #F9FAFB; /* text-gray-50 */
-        }
-        .font-mono {
-            font-family: 'Roboto Mono', monospace;
-        }
-        .card {
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-        .card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
-        }
-        .console-log-entry {
-            border-left-width: 4px;
-            padding-left: 0.75rem;
-        }
-        .log-info { border-color: #3B82F6; } /* blue-500 */
-        .log-action { border-color: #22C55E; } /* green-500 */
-        .log-chaos { border-color: #EF4444; } /* red-500 */
-        .log-warn { border-color: #F59E0B; } /* amber-500 */
-        
-        .cluster-spoke {
-            transition: all 0.3s ease;
-        }
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Cluster-Chaos: The ACM Simulation</title>
+   <script src="https://cdn.tailwindcss.com"></script>
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+   <style>
+       body {
+           font-family: 'Inter', sans-serif;
+           background-color: #111827; /* bg-gray-900 */
+           color: #F9FAFB; /* text-gray-50 */
+       }
+       .font-mono {
+           font-family: 'Roboto Mono', monospace;
+       }
+       .card {
+           transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+       }
+       .card:hover {
+           transform: translateY(-10px);
+           box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+       }
+       .console-log-entry {
+           border-left-width: 4px;
+           padding-left: 0.75rem;
+       }
+       .log-info { border-color: #3B82F6; } /* blue-500 */
+       .log-action { border-color: #22C55E; } /* green-500 */
+       .log-chaos { border-color: #EF4444; } /* red-500 */
+       .log-warn { border-color: #F59E0B; } /* amber-500 */
+      
+       .cluster-spoke {
+           transition: all 0.3s ease;
+       }
 
-        .cluster-spoke .status-dot {
-            transition: background-color 0.3s ease;
-        }
+       .cluster-spoke .status-dot {
+           transition: background-color 0.3s ease;
+       }
 
-        #modal-overlay {
-            transition: opacity 0.3s ease-in-out;
-        }
-        #modal-content {
-            transition: transform 0.3s ease-in-out;
-        }
-        .modal-hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        .modal-hidden #modal-content {
-            transform: scale(0.95);
-        }
-    </style>
+       #modal-overlay {
+           transition: opacity 0.3s ease-in-out;
+       }
+       #modal-content {
+           transition: transform 0.3s ease-in-out;
+       }
+       .modal-hidden {
+           opacity: 0;
+           pointer-events: none;
+       }
+       .modal-hidden #modal-content {
+           transform: scale(0.95);
+       }
+   </style>
 </head>
 <body class="w-screen h-screen overflow-hidden flex flex-col p-4 gap-4">
 
-    <!-- MAIN GAME UI -->
-    <main class="flex-grow flex gap-4 h-[calc(100%-256px)]">
+   <!-- MAIN GAME UI -->
+   <main class="flex-grow flex gap-4 h-[calc(100%-256px)]">
 
-        <!-- LEFT: STATUS PANEL -->
-        <div id="status-panel" class="w-1/4 h-full bg-gray-800 rounded-lg p-4 flex flex-col gap-4 overflow-y-auto">
-            <h2 class="text-xl font-bold text-center border-b border-gray-700 pb-2">Status Report</h2>
-            
-            <div class="grid grid-cols-2 gap-4 text-center">
+       <!-- LEFT: STATUS PANEL -->
+       <div id="status-panel" class="w-1/4 h-full bg-gray-800 rounded-lg p-4 flex flex-col gap-4 overflow-y-auto">
+           <h2 class="text-xl font-bold text-center border-b border-gray-700 pb-2">Status Report</h2>
+          
+           <div class="grid grid-cols-2 gap-4 text-center">
+               <div>
+                   <p class="text-sm text-gray-400">Day</p>
+                   <p id="turn-display" class="text-2xl font-bold">1 / 30</p>
+               </div>
+               <div>
+                   <p class="text-sm text-gray-400">Actions</p>
+                   <p id="actions-display" class="text-2xl font-bold">2</p>
+               </div>
+               <div>
+                   <p class="text-sm text-gray-400">Compute Units ($CU)</p>
+                   <p id="cu-display" class="text-2xl font-bold text-green-400">5</p>
+               </div>
                 <div>
-                    <p class="text-sm text-gray-400">Day</p>
-                    <p id="turn-display" class="text-2xl font-bold">1 / 30</p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-400">Actions</p>
-                    <p id="actions-display" class="text-2xl font-bold">2</p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-400">Compute Units ($CU)</p>
-                    <p id="cu-display" class="text-2xl font-bold text-green-400">5</p>
-                </div>
-                 <div>
-                    <p class="text-sm text-gray-400">Projects Done</p>
-                    <p id="projects-display" class="text-2xl font-bold">0 / 5</p>
-                </div>
-            </div>
+                   <p class="text-sm text-gray-400">Projects Done</p>
+                   <p id="projects-display" class="text-2xl font-bold">0 / 5</p>
+               </div>
+           </div>
 
-            <div>
-                <p class="text-sm text-gray-400 text-center mb-1">System Stability</p>
+           <div>
+               <p class="text-sm text-gray-400 text-center mb-1">System Stability</p>
+               <div class="w-full bg-gray-700 rounded-full h-6">
+                   <div id="stability-bar" class="bg-blue-600 h-6 rounded-full text-center text-white font-bold text-sm transition-all duration-500" style="width: 100%;">100</div>
+               </div>
+           </div>
+          
+           <div>
+               <p class="text-sm text-gray-400 text-center mb-1">Technical Debt</p>
                 <div class="w-full bg-gray-700 rounded-full h-6">
-                    <div id="stability-bar" class="bg-blue-600 h-6 rounded-full text-center text-white font-bold text-sm transition-all duration-500" style="width: 100%;">100</div>
-                </div>
-            </div>
-            
-            <div>
-                <p class="text-sm text-gray-400 text-center mb-1">Technical Debt</p>
-                 <div class="w-full bg-gray-700 rounded-full h-6">
-                    <div id="tech-debt-bar" class="bg-red-800 h-6 rounded-full text-center text-white font-bold text-sm transition-all duration-500" style="width: 0%;">0</div>
-                </div>
-            </div>
+                   <div id="tech-debt-bar" class="bg-red-800 h-6 rounded-full text-center text-white font-bold text-sm transition-all duration-500" style="width: 0%;">0</div>
+               </div>
+           </div>
 
-            <div id="active-project-container" class="bg-gray-900 rounded-lg p-3 flex-grow flex flex-col">
-                <h3 class="text-lg font-bold text-center mb-2">Active Project</h3>
-                <div id="active-project-card" class="flex-grow flex flex-col justify-center items-center text-center">
-                    <!-- Project card content will be injected here -->
-                </div>
-                <button id="manual-deploy-btn" class="mt-2 w-full bg-green-700 hover:bg-green-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-2 px-2 rounded-lg transition-colors text-sm">Manual Deploy (3 $CU)</button>
-            </div>
+           <div id="active-project-container" class="bg-gray-900 rounded-lg p-3 flex-grow flex flex-col">
+               <h3 class="text-lg font-bold text-center mb-2">Active Project</h3>
+               <div id="active-project-card" class="flex-grow flex flex-col justify-center items-center text-center">
+                   <!-- Project card content will be injected here -->
+               </div>
+               <button id="manual-deploy-btn" class="mt-2 w-full bg-green-700 hover:bg-green-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-2 px-2 rounded-lg transition-colors text-sm">Manual Deploy (3 $CU)</button>
+           </div>
 
-            <div class="flex gap-2">
-                <button id="rules-btn" class="w-1/3 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Rules</button>
-                <button id="end-day-btn" class="w-2/3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">End Day</button>
-            </div>
-        </div>
+           <div class="flex gap-2">
+               <button id="rules-btn" class="w-1/3 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Rules</button>
+               <button id="end-day-btn" class="w-2/3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">End Day</button>
+           </div>
+       </div>
 
-        <!-- CENTER: CLUSTER MAP -->
-        <div class="w-1/2 h-full flex flex-col gap-4">
-            <h2 class="text-xl font-bold text-center">Hybrid Cloud Environment</h2>
-            <div id="cluster-map" class="flex-grow bg-gray-800 rounded-lg p-4 relative grid grid-cols-3 grid-rows-3 gap-4">
-                <!-- Hub in the center -->
-                <div class="col-start-2 row-start-2 flex justify-center items-center">
-                    <div class="w-40 h-40 bg-gray-900 rounded-full flex justify-center items-center text-center font-bold text-lg border-4 border-blue-500 px-4">Your Kubernetes Fleet</div>
-                </div>
-                <!-- Spokes will be injected here -->
-            </div>
-        </div>
+       <!-- CENTER: CLUSTER MAP -->
+       <div class="w-1/2 h-full flex flex-col gap-4">
+           <h2 class="text-xl font-bold text-center">Hybrid Cloud Environment</h2>
+           <div id="cluster-map" class="flex-grow bg-gray-800 rounded-lg p-4 relative grid grid-cols-3 grid-rows-3 gap-4">
+               <!-- Hub in the center -->
+               <div class="col-start-2 row-start-2 flex justify-center items-center">
+                   <div class="w-40 h-40 bg-gray-900 rounded-full flex justify-center items-center text-center font-bold text-lg border-4 border-blue-500 px-4">Your Kubernetes Fleet</div>
+               </div>
+               <!-- Spokes will be injected here -->
+           </div>
+       </div>
 
-        <!-- RIGHT: CONSOLE LOG -->
-        <div class="w-1/4 h-full bg-gray-800 rounded-lg p-4 flex flex-col">
-            <h2 class="text-xl font-bold text-center border-b border-gray-700 pb-2">Console Log</h2>
-            <div id="console-log" class="flex-grow mt-2 overflow-y-auto flex flex-col-reverse">
-                <!-- Log entries will be prepended here -->
-            </div>
-        </div>
-    </main>
+       <!-- RIGHT: CONSOLE LOG -->
+       <div class="w-1/4 h-full bg-gray-800 rounded-lg p-4 flex flex-col">
+           <h2 class="text-xl font-bold text-center border-b border-gray-700 pb-2">Console Log</h2>
+           <div id="console-log" class="flex-grow mt-2 overflow-y-auto flex flex-col-reverse">
+               <!-- Log entries will be prepended here -->
+           </div>
+       </div>
+   </main>
 
-    <!-- BOTTOM: PLAYER HAND -->
-    <div class="h-[240px] w-full bg-gray-800 rounded-lg p-4">
-        <h2 class="text-lg font-bold text-center mb-2">Your Hand (Max 5)</h2>
-        <div id="player-hand" class="flex gap-4 justify-center items-center h-full">
-            <!-- Player cards will be injected here -->
-        </div>
-    </div>
+   <!-- BOTTOM: PLAYER HAND -->
+   <div class="h-[240px] w-full bg-gray-800 rounded-lg p-4">
+       <h2 class="text-lg font-bold text-center mb-2">Your Hand (Max 5)</h2>
+       <div id="player-hand" class="flex gap-4 justify-center items-center h-full">
+           <!-- Player cards will be injected here -->
+       </div>
+   </div>
 
-    <!-- MODAL POPUP -->
-    <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center modal-hidden">
-        <div id="modal-content" class="bg-gray-800 rounded-lg p-8 max-w-lg text-center transform">
-            <h2 id="modal-title" class="text-2xl font-bold mb-4"></h2>
-            <div id="modal-text" class="text-gray-300 mb-6"></div>
-            <button id="modal-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Start Game</button>
-        </div>
-    </div>
+   <!-- MODAL POPUP -->
+   <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center modal-hidden">
+       <div id="modal-content" class="bg-gray-800 rounded-lg p-8 max-w-lg text-center transform">
+           <h2 id="modal-title" class="text-2xl font-bold mb-4"></h2>
+           <div id="modal-text" class="text-gray-300 mb-6"></div>
+           <button id="modal-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Start Game</button>
+           <p id="credit-line" class="text-xs text-gray-500 mt-4"></p>
+       </div>
+   </div>
 
 <script>
 const GAME_RULES = `
-    <div class="text-left space-y-2">
-        <p>You are the Director of Hybrid Cloud Operations. You have <strong>30 days</strong> to complete <strong>5 projects</strong> while keeping the system stable.</p>
-        <ul class="list-disc list-inside text-sm space-y-1">
-            <li><strong>The Goal:</strong> Complete 5 projects before Day 30, and keep your Stability score above 0.</li>
-            <li><strong>Each Day:</strong> A random <strong>Chaos Event</strong> will occur. You will then gain resources ($CU) and draw a card.</li>
-            <li><strong>Actions:</strong> You have <strong>2 Actions</strong> per day to play cards or use the <strong>Manual Deploy</strong> action.</li>
-            <li><strong>Manual Deploy:</strong> For 1 Action and 3 $CU, you can deploy a project requirement without a card. This adds <strong>1 Tech Debt</strong>.</li>
-            <li><strong>Technical Debt:</strong> Each point causes 1 Stability loss per day. Use the 'Refactor' card to clear it.</li>
-            <li><strong>Policies:</strong> Powerful policy cards have a 1 $CU upkeep cost each day.</li>
-        </ul>
-        <p class="text-center font-bold pt-2">Good luck. You'll need it.</p>
-    </div>
+   <div class="text-left space-y-2">
+       <p>You are the Director of Hybrid Cloud Operations. You have <strong>30 days</strong> to complete <strong>5 projects</strong> while keeping the system stable.</p>
+       <ul class="list-disc list-inside text-sm space-y-1">
+           <li><strong>The Goal:</strong> Complete 5 projects before Day 30, and keep your Stability score above 0.</li>
+           <li><strong>Each Day:</strong> A random <strong>Chaos Event</strong> will occur. You will then gain resources ($CU) and draw a card.</li>
+           <li><strong>Actions:</strong> You have <strong>2 Actions</strong> per day to play cards or use the <strong>Manual Deploy</strong> action.</li>
+           <li><strong>Manual Deploy:</strong> For 1 Action and 3 $CU, you can deploy a project requirement without a card. This adds <strong>1 Tech Debt</strong>.</li>
+           <li><strong>Technical Debt:</strong> Each point causes 1 Stability loss per day. Use the 'Refactor' card to clear it.</li>
+           <li><strong>Policies:</strong> Powerful policy cards have a 1 $CU upkeep cost each day.</li>
+       </ul>
+       <p class="text-center font-bold pt-2">Good luck. You'll need it.</p>
+   </div>
 `;
 
 const cardDefinitions = {
-    // Player Deck Cards
-    player: [
-        // Cluster Cards
-        { name: 'Provision OpenShift', type: 'Cluster', cost: 4, text: 'Deploy a new OpenShift cluster to any unmanaged location.' },
-        { name: 'Provision EKS', type: 'Cluster', cost: 3, clusterType: 'AWS', text: 'Deploy a new EKS cluster to the AWS region.' },
-        { name: 'Provision AKS', type: 'Cluster', cost: 3, clusterType: 'Azure', text: 'Deploy a new AKS cluster to the Azure region.' },
-        { name: 'Provision GKE', type: 'Cluster', cost: 3, clusterType: 'GCP', text: 'Deploy a new GKE cluster to the GCP region.' },
-        { name: 'Provision K3s Edge', type: 'Cluster', cost: 2, clusterType: 'Edge Site 1', text: 'Deploy a new K3s cluster to Edge Site 1.' },
-        { name: 'Provision K3s Edge', type: 'Cluster', cost: 2, clusterType: 'Edge Site 2', text: 'Deploy a new K3s cluster to Edge Site 2.' },
-        
-        // Action Cards
-        { name: 'GitOps Rollout', type: 'Action', cost: 2, text: 'Fixes "Configuration Drift" on a cluster OR deploys a project requirement.' },
-        { name: 'Fleet Observability', type: 'Action', cost: 1, text: 'Look at the top 3 cards of the Chaos deck. Put one at the bottom.' },
-        { name: 'Disaster Recovery', type: 'Action', cost: 3, text: 'Play immediately after a Chaos Event damages a cluster to negate its effects and gain 5 Stability.' },
-        { name: 'Scale Up', type: 'Action', cost: 0, text: 'Gain 3 $CU immediately. A quick budget injection.' },
-        { name: 'Expert Consultation', type: 'Action', cost: 2, text: 'Draw 2 cards. A fresh perspective.' },
-        { name: 'Refactor & Automate', type: 'Action', cost: 5, text: 'Pay down your technical debt. Resets Tech Debt to 0.' },
+   // Player Deck Cards
+   player: [
+       // Cluster Cards
+       { name: 'Provision OpenShift', type: 'Cluster', cost: 4, text: 'Deploy a new OpenShift cluster to any unmanaged location.' },
+       { name: 'Provision EKS', type: 'Cluster', cost: 3, clusterType: 'AWS', text: 'Deploy a new EKS cluster to the AWS region.' },
+       { name: 'Provision AKS', type: 'Cluster', cost: 3, clusterType: 'Azure', text: 'Deploy a new AKS cluster to the Azure region.' },
+       { name: 'Provision GKE', type: 'Cluster', cost: 3, clusterType: 'GCP', text: 'Deploy a new GKE cluster to the GCP region.' },
+       { name: 'Provision K3s Edge', type: 'Cluster', cost: 2, clusterType: 'Edge Site 1', text: 'Deploy a new K3s cluster to Edge Site 1.' },
+       { name: 'Provision K3s Edge', type: 'Cluster', cost: 2, clusterType: 'Edge Site 2', text: 'Deploy a new K3s cluster to Edge Site 2.' },
+      
+       // Action Cards
+       { name: 'GitOps Rollout', type: 'Action', cost: 2, text: 'Fixes "Configuration Drift" on a cluster OR deploys a project requirement.' },
+       { name: 'Fleet Observability', type: 'Action', cost: 1, text: 'Look at the top 3 cards of the Chaos deck. Put one at the bottom.' },
+       { name: 'Disaster Recovery', type: 'Action', cost: 3, text: 'Play immediately after a Chaos Event damages a cluster to negate its effects and gain 5 Stability.' },
+       { name: 'Scale Up', type: 'Action', cost: 0, text: 'Gain 3 $CU immediately. A quick budget injection.' },
+       { name: 'Expert Consultation', type: 'Action', cost: 2, text: 'Draw 2 cards. A fresh perspective.' },
+       { name: 'Refactor & Automate', type: 'Action', cost: 5, text: 'Pay down your technical debt. Resets Tech Debt to 0.' },
 
-        // Policy Cards
-        { name: 'Implement GitOps Standard', type: 'Policy', cost: 3, upkeep: 1, text: 'For the next 5 turns, gain +5 Stability when you deploy a project requirement. Costs 1 $CU upkeep per turn.' },
-        { name: 'Standardize Security Posture', type: 'Policy', cost: 4, upkeep: 1, text: 'Stability loss from "Security Vulnerability" events is halved. Costs 1 $CU upkeep per turn.' },
-        { name: 'Automated Auditing', type: 'Policy', cost: 3, upkeep: 1, text: 'At the end of your turn, if you have no clusters with negative statuses, gain +3 Stability. Costs 1 $CU upkeep per turn.' },
-    ],
+       // Policy Cards
+       { name: 'Implement GitOps Standard', type: 'Policy', cost: 3, upkeep: 1, text: 'For the next 5 turns, gain +5 Stability when you deploy a project requirement. Costs 1 $CU upkeep per turn.' },
+       { name: 'Standardize Security Posture', type: 'Policy', cost: 4, upkeep: 1, text: 'Stability loss from "Security Vulnerability" events is halved. Costs 1 $CU upkeep per turn.' },
+       { name: 'Automated Auditing', type: 'Policy', cost: 3, upkeep: 1, text: 'At the end of your turn, if you have no clusters with negative statuses, gain +3 Stability. Costs 1 $CU upkeep per turn.' },
+   ],
 
-    // Project Cards
-    projects: [
-        { id: 'crm', name: 'Deploy New CRM Platform', requirements: ['GCP', 'On-Prem'], reward: { stability: 15 } },
-        { id: 'db', name: 'Migrate Legacy Database', requirements: ['AWS', 'On-Prem'], reward: { stability: 15 } },
-        { id: 'ecom', name: 'Launch E-Commerce Site', requirements: ['AWS', 'Azure'], reward: { stability: 15 } },
-        { id: 'iot', name: 'Retail Store IoT Rollout', requirements: ['Edge Site 1', 'Edge Site 2'], reward: { stability: 20 } },
-        { id: 'ai', name: 'AI/ML Analytics Engine', requirements: ['GCP', 'AWS'], reward: { stability: 20 } },
-        { id: 'devops', name: 'Internal DevOps Platform', requirements: ['On-Prem', 'Azure'], reward: { stability: 15 } },
-        { id: 'supply', name: 'Supply Chain Tracker', requirements: ['Edge Site 1', 'On-Prem'], reward: { stability: 15 } },
-    ],
-    
-    // Chaos Event Cards
-    chaos: [
-        { name: 'Configuration Drift!', type: 'Chaos', text: 'A random cluster is now drifting. Stability drops by 2 each turn until fixed with "GitOps Rollout".', effect: 'drift' },
-        { name: 'Security Vulnerability!', type: 'Chaos', text: 'Major CVE announced. You must choose how to respond.', effect: 'vulnerability' },
-        { name: 'Expired Certs!', type: 'Chaos', text: 'A random cluster is offline. It produces no resources until you pay 2 $CU to fix.', effect: 'certs' },
-        { name: 'Network Outage!', type: 'Chaos', text: 'A random cluster produces no $CU next turn.', effect: 'outage' },
-        { name: 'Sudden Budget Cut!', type: 'Chaos', text: 'The CFO strikes! Lose half of your current $CU, rounded down.', effect: 'budget_cut' },
-        { name: 'All Hands Meeting!', type: 'Chaos', text: 'You are stuck in a pointless meeting. You only have 1 Action this turn.', effect: 'meeting' },
-        { name: 'A Moment of Calm', type: 'Chaos', text: 'A rare quiet day. Gain 5 Stability.', effect: 'calm' },
-        { name: 'A Moment of Calm', type: 'Chaos', text: 'A rare quiet day. Gain 5 Stability.', effect: 'calm' },
-        { name: 'A Moment of Calm', type: 'Chaos', text: 'A rare quiet day. Gain 5 Stability.', effect: 'calm' },
-        { name: 'Failed Deployment', type: 'Chaos', text: 'A random cluster with a deployed project part goes offline. The project part is removed.', effect: 'failed_deployment' },
-    ],
-    
-    // Day 2 Ops Chaos Cards (added dynamically)
-    day2: {
-        ecom: { name: 'Unexpected Traffic Spike!', type: 'Chaos', text: 'Your E-Commerce site is overwhelmed! Pay 4 $CU to scale up its cluster or lose 25 Stability.', effect: 'day2_ecom' },
-    }
+   // Project Cards
+   projects: [
+       { id: 'crm', name: 'Deploy New CRM Platform', requirements: ['GCP', 'On-Prem'], reward: { stability: 15 } },
+       { id: 'db', name: 'Migrate Legacy Database', requirements: ['AWS', 'On-Prem'], reward: { stability: 15 } },
+       { id: 'ecom', name: 'Launch E-Commerce Site', requirements: ['AWS', 'Azure'], reward: { stability: 15 } },
+       { id: 'iot', name: 'Retail Store IoT Rollout', requirements: ['Edge Site 1', 'Edge Site 2'], reward: { stability: 20 } },
+       { id: 'ai', name: 'AI/ML Analytics Engine', requirements: ['GCP', 'AWS'], reward: { stability: 20 } },
+       { id: 'devops', name: 'Internal DevOps Platform', requirements: ['On-Prem', 'Azure'], reward: { stability: 15 } },
+       { id: 'supply', name: 'Supply Chain Tracker', requirements: ['Edge Site 1', 'On-Prem'], reward: { stability: 15 } },
+   ],
+  
+   // Chaos Event Cards
+   chaos: [
+       { name: 'Configuration Drift!', type: 'Chaos', text: 'A random cluster is now drifting. Stability drops by 2 each turn until fixed with "GitOps Rollout".', effect: 'drift' },
+       { name: 'Security Vulnerability!', type: 'Chaos', text: 'Major CVE announced. You must choose how to respond.', effect: 'vulnerability' },
+       { name: 'Expired Certs!', type: 'Chaos', text: 'A random cluster is offline. It produces no resources until you pay 2 $CU to fix.', effect: 'certs' },
+       { name: 'Network Outage!', type: 'Chaos', text: 'A random cluster produces no $CU next turn.', effect: 'outage' },
+       { name: 'Sudden Budget Cut!', type: 'Chaos', text: 'The CFO strikes! Lose half of your current $CU, rounded down.', effect: 'budget_cut' },
+       { name: 'All Hands Meeting!', type: 'Chaos', text: 'You are stuck in a pointless meeting. You only have 1 Action this turn.', effect: 'meeting' },
+       { name: 'A Moment of Calm', type: 'Chaos', text: 'A rare quiet day. Gain 5 Stability.', effect: 'calm' },
+       { name: 'A Moment of Calm', type: 'Chaos', text: 'A rare quiet day. Gain 5 Stability.', effect: 'calm' },
+       { name: 'A Moment of Calm', type: 'Chaos', text: 'A rare quiet day. Gain 5 Stability.', effect: 'calm' },
+       { name: 'Failed Deployment', type: 'Chaos', text: 'A random cluster with a deployed project part goes offline. The project part is removed.', effect: 'failed_deployment' },
+   ],
+  
+   // Day 2 Ops Chaos Cards (added dynamically)
+   day2: {
+       ecom: { name: 'Unexpected Traffic Spike!', type: 'Chaos', text: 'Your E-Commerce site is overwhelmed! Pay 4 $CU to scale up its cluster or lose 25 Stability.', effect: 'day2_ecom' },
+   }
 };
 
 const clusterLocations = [
-    { id: 'On-Prem', name: 'On-Prem Datacenter', grid: 'col-start-2 row-start-1' },
-    { id: 'AWS', name: 'AWS', grid: 'col-start-1 row-start-1' },
-    { id: 'Azure', name: 'Azure', grid: 'col-start-1 row-start-2' },
-    { id: 'GCP', name: 'GCP', grid: 'col-start-1 row-start-3' },
-    { id: 'Edge Site 1', name: 'Edge Site 1', grid: 'col-start-3 row-start-1' },
-    { id: 'Edge Site 2', name: 'Edge Site 2', grid: 'col-start-3 row-start-3' },
+   { id: 'On-Prem', name: 'On-Prem Datacenter', grid: 'col-start-2 row-start-1' },
+   { id: 'AWS', name: 'AWS', grid: 'col-start-1 row-start-1' },
+   { id: 'Azure', name: 'Azure', grid: 'col-start-1 row-start-2' },
+   { id: 'GCP', name: 'GCP', grid: 'col-start-1 row-start-3' },
+   { id: 'Edge Site 1', name: 'Edge Site 1', grid: 'col-start-3 row-start-1' },
+   { id: 'Edge Site 2', name: 'Edge Site 2', grid: 'col-start-3 row-start-3' },
 ];
 
 let gameState = {};
 
 // DOM Elements
 const DOMElements = {
-    turn: document.getElementById('turn-display'),
-    actions: document.getElementById('actions-display'),
-    cu: document.getElementById('cu-display'),
-    projects: document.getElementById('projects-display'),
-    stabilityBar: document.getElementById('stability-bar'),
-    techDebtBar: document.getElementById('tech-debt-bar'),
-    activeProjectCard: document.getElementById('active-project-card'),
-    manualDeployBtn: document.getElementById('manual-deploy-btn'),
-    endDayBtn: document.getElementById('end-day-btn'),
-    rulesBtn: document.getElementById('rules-btn'),
-    clusterMap: document.getElementById('cluster-map'),
-    consoleLog: document.getElementById('console-log'),
-    playerHand: document.getElementById('player-hand'),
-    modal: {
-        overlay: document.getElementById('modal-overlay'),
-        content: document.getElementById('modal-content'),
-        title: document.getElementById('modal-title'),
-        text: document.getElementById('modal-text'),
-        button: document.getElementById('modal-button'),
-    }
+   turn: document.getElementById('turn-display'),
+   actions: document.getElementById('actions-display'),
+   cu: document.getElementById('cu-display'),
+   projects: document.getElementById('projects-display'),
+   stabilityBar: document.getElementById('stability-bar'),
+   techDebtBar: document.getElementById('tech-debt-bar'),
+   activeProjectCard: document.getElementById('active-project-card'),
+   manualDeployBtn: document.getElementById('manual-deploy-btn'),
+   endDayBtn: document.getElementById('end-day-btn'),
+   rulesBtn: document.getElementById('rules-btn'),
+   clusterMap: document.getElementById('cluster-map'),
+   consoleLog: document.getElementById('console-log'),
+   playerHand: document.getElementById('player-hand'),
+   modal: {
+       overlay: document.getElementById('modal-overlay'),
+       content: document.getElementById('modal-content'),
+       title: document.getElementById('modal-title'),
+       text: document.getElementById('modal-text'),
+       button: document.getElementById('modal-button'),
+       credit: document.getElementById('credit-line'),
+   }
 };
 
 // --- UTILITY FUNCTIONS ---
 function shuffle(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
+   for (let i = array.length - 1; i > 0; i--) {
+       const j = Math.floor(Math.random() * (i + 1));
+       [array[i], array[j]] = [array[j], array[i]];
+   }
+   return array;
 }
 
 function logToConsole(message, type = 'info') {
-    const entry = document.createElement('div');
-    entry.classList.add('console-log-entry', `log-${type}`, 'mb-2', 'text-sm');
-    entry.innerHTML = `<p class="font-bold">[DAY ${gameState.turn}]</p><p>${message}</p>`;
-    DOMElements.consoleLog.prepend(entry);
+   const entry = document.createElement('div');
+   entry.classList.add('console-log-entry', `log-${type}`, 'mb-2', 'text-sm');
+   entry.innerHTML = `<p class="font-bold">[DAY ${gameState.turn}]</p><p>${message}</p>`;
+   DOMElements.consoleLog.prepend(entry);
 }
 
-function showModal(title, text, buttonText, callback) {
-    DOMElements.modal.title.textContent = title;
-    DOMElements.modal.text.innerHTML = text;
-    DOMElements.modal.button.textContent = buttonText;
-    DOMElements.modal.button.onclick = callback;
-    DOMElements.modal.overlay.classList.remove('modal-hidden');
+function showModal(title, text, buttonText, callback, credit = false) {
+   DOMElements.modal.title.textContent = title;
+   DOMElements.modal.text.innerHTML = text;
+   DOMElements.modal.button.textContent = buttonText;
+   DOMElements.modal.button.onclick = callback;
+   DOMElements.modal.credit.textContent = credit ? 'Created by: Dan Bettinger & Gemini' : '';
+   DOMElements.modal.overlay.classList.remove('modal-hidden');
 }
 
 function hideModal() {
-    DOMElements.modal.overlay.classList.add('modal-hidden');
+   DOMElements.modal.overlay.classList.add('modal-hidden');
 }
 
 // --- GAME STATE & RENDERING ---
 function init() {
-    gameState = {
-        turn: 1,
-        maxTurns: 30,
-        cu: 5,
-        stability: 100,
-        maxStability: 100,
-        techDebt: 0,
-        maxTechDebt: 20,
-        actions: 2,
-        maxActions: 2,
-        projectsCompleted: 0,
-        targetProjects: 5,
-        hand: [],
-        handLimit: 5,
-        playerDeck: shuffle([...cardDefinitions.player, ...cardDefinitions.player]),
-        projectsDeck: shuffle([...cardDefinitions.projects]),
-        chaosDeck: shuffle([...cardDefinitions.chaos, ...cardDefinitions.chaos]),
-        activeProject: null,
-        clusters: {},
-        activePolicies: {},
-        gameOver: false,
-    };
+   gameState = {
+       turn: 1,
+       maxTurns: 30,
+       cu: 5,
+       stability: 100,
+       maxStability: 100,
+       techDebt: 0,
+       maxTechDebt: 20,
+       actions: 2,
+       maxActions: 2,
+       projectsCompleted: 0,
+       targetProjects: 5,
+       hand: [],
+       handLimit: 5,
+       playerDeck: shuffle([...cardDefinitions.player, ...cardDefinitions.player]),
+       projectsDeck: shuffle([...cardDefinitions.projects]),
+       chaosDeck: shuffle([...cardDefinitions.chaos, ...cardDefinitions.chaos]),
+       activeProject: null,
+       clusters: {},
+       activePolicies: {},
+       gameOver: false,
+   };
 
-    clusterLocations.forEach(loc => {
-        gameState.clusters[loc.id] = {
-            controlled: false,
-            status: 'stable',
-            projectPart: null,
-        };
-    });
-    
-    drawPlayerCard(3);
-    drawNewProject();
+   clusterLocations.forEach(loc => {
+       gameState.clusters[loc.id] = {
+           controlled: false,
+           status: 'stable',
+           projectPart: null,
+       };
+   });
+  
+   drawPlayerCard(3);
+   drawNewProject();
 
-    renderAll();
-    showModal(
-        'Welcome to Cluster-Chaos!',
-        GAME_RULES,
-        'Begin Simulation',
-        () => {
-            hideModal();
-            logToConsole('Simulation started. Good luck.', 'info');
-        }
-    );
+   renderAll();
+   showModal(
+       'Welcome to Cluster-Chaos!',
+       GAME_RULES,
+       'Begin Simulation',
+       () => {
+           hideModal();
+           logToConsole('Simulation started. Good luck.', 'info');
+       },
+       true // Show credit line
+   );
 }
 
 function renderAll() {
-    renderStatusPanel();
-    renderClusterMap();
-    renderPlayerHand();
+   renderStatusPanel();
+   renderClusterMap();
+   renderPlayerHand();
 }
 
 function renderStatusPanel() {
-    DOMElements.turn.textContent = `${gameState.turn} / ${gameState.maxTurns}`;
-    DOMElements.actions.textContent = gameState.actions;
-    DOMElements.cu.textContent = gameState.cu;
-    DOMElements.projects.textContent = `${gameState.projectsCompleted} / ${gameState.targetProjects}`;
-    
-    const stabilityPercent = (gameState.stability / gameState.maxStability) * 100;
-    DOMElements.stabilityBar.style.width = `${stabilityPercent}%`;
-    DOMElements.stabilityBar.textContent = gameState.stability;
-    DOMElements.stabilityBar.className = 'h-6 rounded-full text-center text-white font-bold text-sm transition-all duration-500';
-    if (stabilityPercent > 60) DOMElements.stabilityBar.classList.add('bg-blue-600');
-    else if (stabilityPercent > 30) DOMElements.stabilityBar.classList.add('bg-yellow-500');
-    else DOMElements.stabilityBar.classList.add('bg-red-600');
+   DOMElements.turn.textContent = `${gameState.turn} / ${gameState.maxTurns}`;
+   DOMElements.actions.textContent = gameState.actions;
+   DOMElements.cu.textContent = gameState.cu;
+   DOMElements.projects.textContent = `${gameState.projectsCompleted} / ${gameState.targetProjects}`;
+  
+   const stabilityPercent = (gameState.stability / gameState.maxStability) * 100;
+   DOMElements.stabilityBar.style.width = `${stabilityPercent}%`;
+   DOMElements.stabilityBar.textContent = gameState.stability;
+   DOMElements.stabilityBar.className = 'h-6 rounded-full text-center text-white font-bold text-sm transition-all duration-500';
+   if (stabilityPercent > 60) DOMElements.stabilityBar.classList.add('bg-blue-600');
+   else if (stabilityPercent > 30) DOMElements.stabilityBar.classList.add('bg-yellow-500');
+   else DOMElements.stabilityBar.classList.add('bg-red-600');
 
-    const techDebtPercent = (gameState.techDebt / gameState.maxTechDebt) * 100;
-    DOMElements.techDebtBar.style.width = `${techDebtPercent}%`;
-    DOMElements.techDebtBar.textContent = gameState.techDebt;
+   const techDebtPercent = (gameState.techDebt / gameState.maxTechDebt) * 100;
+   DOMElements.techDebtBar.style.width = `${techDebtPercent}%`;
+   DOMElements.techDebtBar.textContent = gameState.techDebt;
 
-    renderActiveProject();
-    
-    const canManuallyDeploy = gameState.actions > 0 && gameState.cu >= 3;
-    DOMElements.manualDeployBtn.disabled = !canManuallyDeploy;
+   renderActiveProject();
+  
+   const canManuallyDeploy = gameState.actions > 0 && gameState.cu >= 3;
+   DOMElements.manualDeployBtn.disabled = !canManuallyDeploy;
 }
 
 function renderActiveProject() {
-    const container = DOMElements.activeProjectCard;
-    if (gameState.activeProject) {
-        const project = gameState.activeProject;
-        let requirementsHTML = project.requirements.map(req => {
-            const isComplete = project.completedReqs.includes(req);
-            return `<span class="px-2 py-1 rounded ${isComplete ? 'bg-green-600' : 'bg-gray-700'}">${req}</span>`;
-        }).join(' ');
+   const container = DOMElements.activeProjectCard;
+   if (gameState.activeProject) {
+       const project = gameState.activeProject;
+       let requirementsHTML = project.requirements.map(req => {
+           const isComplete = project.completedReqs.includes(req);
+           return `<span class="px-2 py-1 rounded ${isComplete ? 'bg-green-600' : 'bg-gray-700'}">${req}</span>`;
+       }).join(' ');
 
-        container.innerHTML = `
-            <p class="font-bold text-blue-300">${project.name}</p>
-            <p class="text-sm text-gray-400 my-2">Requirements:</p>
-            <div class="flex gap-2 justify-center flex-wrap">${requirementsHTML}</div>
-            <p class="text-xs text-gray-500 mt-2">Reward: +${project.reward.stability} Stability</p>
-        `;
-    } else {
-        container.innerHTML = `<p class="text-gray-500">No active project.</p>`;
-    }
+       container.innerHTML = `
+           <p class="font-bold text-blue-300">${project.name}</p>
+           <p class="text-sm text-gray-400 my-2">Requirements:</p>
+           <div class="flex gap-2 justify-center flex-wrap">${requirementsHTML}</div>
+           <p class="text-xs text-gray-500 mt-2">Reward: +${project.reward.stability} Stability</p>
+       `;
+   } else {
+       container.innerHTML = `<p class="text-gray-500">No active project.</p>`;
+   }
 }
 
 function renderClusterMap() {
-    const map = DOMElements.clusterMap;
-    map.querySelectorAll('.cluster-spoke').forEach(el => el.remove());
+   const map = DOMElements.clusterMap;
+   map.querySelectorAll('.cluster-spoke').forEach(el => el.remove());
 
-    clusterLocations.forEach(loc => {
-        const cluster = gameState.clusters[loc.id];
-        const spoke = document.createElement('div');
-        spoke.className = `cluster-spoke flex justify-center items-center p-2 rounded-lg border-2 ${loc.grid}`;
-        spoke.dataset.locationId = loc.id;
-        
-        let borderColor = 'border-gray-700';
-        let statusDotColor = 'bg-gray-600';
-        let statusText = 'Unmanaged';
+   clusterLocations.forEach(loc => {
+       const cluster = gameState.clusters[loc.id];
+       const spoke = document.createElement('div');
+       spoke.className = `cluster-spoke flex justify-center items-center p-2 rounded-lg border-2 ${loc.grid}`;
+       spoke.dataset.locationId = loc.id;
+      
+       let borderColor = 'border-gray-700';
+       let statusDotColor = 'bg-gray-600';
+       let statusText = 'Unmanaged';
 
-        if (cluster.controlled) {
-            borderColor = 'border-blue-500';
-            switch (cluster.status) {
-                case 'stable':
-                    statusDotColor = 'bg-green-500';
-                    statusText = 'Stable';
-                    break;
-                case 'drift':
-                    statusDotColor = 'bg-yellow-500';
-                    statusText = 'Drifting';
-                    break;
-                case 'certs':
-                    statusDotColor = 'bg-red-500';
-                    statusText = 'Offline (Certs)';
-                    break;
-                case 'outage':
-                    statusDotColor = 'bg-orange-500';
-                    statusText = 'Network Outage';
-                    break;
-            }
-        }
-        
-        spoke.classList.add(borderColor);
+       if (cluster.controlled) {
+           borderColor = 'border-blue-500';
+           switch (cluster.status) {
+               case 'stable':
+                   statusDotColor = 'bg-green-500';
+                   statusText = 'Stable';
+                   break;
+               case 'drift':
+                   statusDotColor = 'bg-yellow-500';
+                   statusText = 'Drifting';
+                   break;
+               case 'certs':
+                   statusDotColor = 'bg-red-500';
+                   statusText = 'Offline (Certs)';
+                   break;
+               case 'outage':
+                   statusDotColor = 'bg-orange-500';
+                   statusText = 'Network Outage';
+                   break;
+           }
+       }
+      
+       spoke.classList.add(borderColor);
 
-        let projectHTML = '';
-        if (cluster.projectPart) {
-            projectHTML = `<div class="absolute top-1 right-1 w-4 h-4 bg-purple-500 rounded-full" title="Project: ${cluster.projectPart}"></div>`;
-        }
-        
-        spoke.innerHTML = `
-            <div class="text-center relative">
-                <p class="font-bold">${loc.name}</p>
-                <div class="flex items-center justify-center gap-2 mt-1">
-                    <div class="status-dot w-3 h-3 rounded-full ${statusDotColor}"></div>
-                    <p class="text-sm text-gray-400">${statusText}</p>
-                </div>
-                ${projectHTML}
-            </div>
-        `;
-        map.appendChild(spoke);
-    });
+       let projectHTML = '';
+       if (cluster.projectPart) {
+           projectHTML = `<div class="absolute top-1 right-1 w-4 h-4 bg-purple-500 rounded-full" title="Project: ${cluster.projectPart}"></div>`;
+       }
+      
+       spoke.innerHTML = `
+           <div class="text-center relative">
+               <p class="font-bold">${loc.name}</p>
+               <div class="flex items-center justify-center gap-2 mt-1">
+                   <div class="status-dot w-3 h-3 rounded-full ${statusDotColor}"></div>
+                   <p class="text-sm text-gray-400">${statusText}</p>
+               </div>
+               ${projectHTML}
+           </div>
+       `;
+       map.appendChild(spoke);
+   });
 }
 
 function renderPlayerHand() {
-    const hand = DOMElements.playerHand;
-    hand.innerHTML = '';
-    gameState.hand.forEach((card, index) => {
-        const cardEl = document.createElement('div');
-        cardEl.className = 'card w-40 h-40 bg-gray-900 rounded-lg p-3 flex flex-col justify-between border border-gray-700 cursor-pointer';
-        cardEl.dataset.cardIndex = index;
-        
-        let costColor = card.cost > gameState.cu ? 'text-red-500' : 'text-green-400';
-        let typeColor = 'text-gray-400';
-        if (card.type === 'Policy') typeColor = 'text-purple-400';
-        if (card.type === 'Cluster') typeColor = 'text-blue-400';
+   const hand = DOMElements.playerHand;
+   hand.innerHTML = '';
+   gameState.hand.forEach((card, index) => {
+       const cardEl = document.createElement('div');
+       cardEl.className = 'card w-40 h-40 bg-gray-900 rounded-lg p-3 flex flex-col justify-between border border-gray-700 cursor-pointer';
+       cardEl.dataset.cardIndex = index;
+      
+       let costColor = card.cost > gameState.cu ? 'text-red-500' : 'text-green-400';
+       let typeColor = 'text-gray-400';
+       if (card.type === 'Policy') typeColor = 'text-purple-400';
+       if (card.type === 'Cluster') typeColor = 'text-blue-400';
 
-        cardEl.innerHTML = `
-            <div>
-                <p class="font-bold text-base leading-tight">${card.name}</p>
-                <p class="text-xs font-mono ${typeColor}">${card.type}</p>
-            </div>
-            <p class="text-xs text-gray-300">${card.text}</p>
-            <p class="text-right font-bold ${costColor}">Cost: ${card.cost} $CU</p>
-        `;
-        cardEl.addEventListener('click', () => onCardClick(index));
-        hand.appendChild(cardEl);
-    });
+       cardEl.innerHTML = `
+           <div>
+               <p class="font-bold text-base leading-tight">${card.name}</p>
+               <p class="text-xs font-mono ${typeColor}">${card.type}</p>
+           </div>
+           <p class="text-xs text-gray-300">${card.text}</p>
+           <p class="text-right font-bold ${costColor}">Cost: ${card.cost} $CU</p>
+       `;
+       cardEl.addEventListener('click', () => onCardClick(index));
+       hand.appendChild(cardEl);
+   });
 }
 
 // --- GAME ACTIONS ---
 function drawPlayerCard(count = 1) {
-    for (let i = 0; i < count; i++) {
-        if (gameState.hand.length < gameState.handLimit) {
-            if (gameState.playerDeck.length === 0) {
-                logToConsole('Player deck empty. Reshuffling discard pile.', 'warn');
-                gameState.playerDeck = shuffle([...cardDefinitions.player]);
-            }
-            gameState.hand.push(gameState.playerDeck.pop());
-        }
-    }
+   for (let i = 0; i < count; i++) {
+       if (gameState.hand.length < gameState.handLimit) {
+           if (gameState.playerDeck.length === 0) {
+               logToConsole('Player deck empty. Reshuffling discard pile.', 'warn');
+               gameState.playerDeck = shuffle([...cardDefinitions.player]);
+           }
+           gameState.hand.push(gameState.playerDeck.pop());
+       }
+   }
 }
 
 function drawNewProject() {
-    if (gameState.projectsDeck.length > 0) {
-        const newProject = gameState.projectsDeck.pop();
-        newProject.completedReqs = [];
-        gameState.activeProject = newProject;
-    } else {
-        logToConsole('No more projects available!', 'warn');
-        gameState.activeProject = null;
-    }
+   if (gameState.projectsDeck.length > 0) {
+       const newProject = gameState.projectsDeck.pop();
+       newProject.completedReqs = [];
+       gameState.activeProject = newProject;
+   } else {
+       logToConsole('No more projects available!', 'warn');
+       gameState.activeProject = null;
+   }
 }
 
 function onCardClick(cardIndex) {
-    if (gameState.actions <= 0) {
-        logToConsole('No actions remaining this turn.', 'warn');
-        return;
-    }
-    
-    const card = gameState.hand[cardIndex];
-    if (card.cost > gameState.cu) {
-        logToConsole(`Not enough $CU to play ${card.name}.`, 'warn');
-        return;
-    }
+   if (gameState.actions <= 0) {
+       logToConsole('No actions remaining this turn.', 'warn');
+       return;
+   }
+  
+   const card = gameState.hand[cardIndex];
+   if (card.cost > gameState.cu) {
+       logToConsole(`Not enough $CU to play ${card.name}.`, 'warn');
+       return;
+   }
 
-    gameState.actions--;
-    gameState.cu -= card.cost;
-    gameState.hand.splice(cardIndex, 1);
-    logToConsole(`Played card: ${card.name}.`, 'action');
-    
-    handleCardEffect(card);
+   gameState.actions--;
+   gameState.cu -= card.cost;
+   gameState.hand.splice(cardIndex, 1);
+   logToConsole(`Played card: ${card.name}.`, 'action');
+  
+   handleCardEffect(card);
 
-    renderAll();
-    checkGameOver();
+   renderAll();
+   checkGameOver();
 }
 
 function handleCardEffect(card) {
-    switch (card.name) {
-        case 'Provision OpenShift':
-            promptForUnmanagedLocation('Select a location to deploy OpenShift:', locationId => {
-                const targetCluster = gameState.clusters[locationId];
-                if (targetCluster && !targetCluster.controlled) {
-                    targetCluster.controlled = true;
-                    logToConsole(`OpenShift cluster is now online at ${locationId}.`, 'info');
-                }
-                renderAll();
-            });
-            break;
-        case 'Provision EKS':
-        case 'Provision AKS':
-        case 'Provision GKE':
-        case 'Provision K3s Edge':
-            const targetCluster = gameState.clusters[card.clusterType];
-            if (targetCluster && !targetCluster.controlled) {
-                targetCluster.controlled = true;
-                logToConsole(`${card.clusterType} cluster is now online and managed.`, 'info');
-            } else {
-                logToConsole(`Cannot provision cluster at ${card.clusterType}. Location is already managed.`, 'warn');
-                gameState.cu += card.cost;
-            }
-            break;
-        case 'GitOps Rollout':
-            promptForTarget('Select a cluster to apply GitOps Rollout:', cluster => {
-                if (cluster.status === 'drift') {
-                    cluster.status = 'stable';
-                    logToConsole(`Configuration drift on ${cluster.id} has been resolved.`, 'action');
-                } else {
-                    deployProjectRequirement(cluster.id);
-                }
-                renderAll();
-            });
-            break;
-        case 'Refactor & Automate':
-            gameState.techDebt = 0;
-            logToConsole('Massive refactoring effort completed. Technical Debt is reset to 0!', 'action');
-            break;
-        case 'Fleet Observability':
-            showFleetObservabilityModal();
-            break;
-        case 'Disaster Recovery':
-            gameState.activePolicies.disasterRecovery = true;
-            logToConsole('Disaster Recovery plan is active. The next damaging Chaos Event will be negated.', 'info');
-            break;
-        case 'Scale Up':
-            gameState.cu += 3;
-            break;
-        case 'Expert Consultation':
-            drawPlayerCard(2);
-            break;
-        case 'Implement GitOps Standard':
-            gameState.activePolicies.gitops = { turns: 5, upkeep: card.upkeep };
-            logToConsole('GitOps Standard policy active.', 'info');
-            break;
-        case 'Standardize Security Posture':
-            gameState.activePolicies.security = { upkeep: card.upkeep };
-            logToConsole('Security Posture policy active.', 'info');
-            break;
-        case 'Automated Auditing':
-            gameState.activePolicies.auditing = { upkeep: card.upkeep };
-            logToConsole('Automated Auditing policy active.', 'info');
-            break;
-    }
+   switch (card.name) {
+       case 'Provision OpenShift':
+           promptForUnmanagedLocation('Select a location to deploy OpenShift:', locationId => {
+               const targetCluster = gameState.clusters[locationId];
+               if (targetCluster && !targetCluster.controlled) {
+                   targetCluster.controlled = true;
+                   logToConsole(`OpenShift cluster is now online at ${locationId}.`, 'info');
+               }
+               renderAll();
+           });
+           break;
+       case 'Provision EKS':
+       case 'Provision AKS':
+       case 'Provision GKE':
+       case 'Provision K3s Edge':
+           const targetCluster = gameState.clusters[card.clusterType];
+           if (targetCluster && !targetCluster.controlled) {
+               targetCluster.controlled = true;
+               logToConsole(`${card.clusterType} cluster is now online and managed.`, 'info');
+           } else {
+               logToConsole(`Cannot provision cluster at ${card.clusterType}. Location is already managed.`, 'warn');
+               gameState.cu += card.cost;
+           }
+           break;
+       case 'GitOps Rollout':
+           promptForTarget('Select a cluster to apply GitOps Rollout:', cluster => {
+               if (cluster.status === 'drift') {
+                   cluster.status = 'stable';
+                   logToConsole(`Configuration drift on ${cluster.id} has been resolved.`, 'action');
+               } else {
+                   deployProjectRequirement(cluster.id);
+               }
+               renderAll();
+           });
+           break;
+       case 'Refactor & Automate':
+           gameState.techDebt = 0;
+           logToConsole('Massive refactoring effort completed. Technical Debt is reset to 0!', 'action');
+           break;
+       case 'Fleet Observability':
+           showFleetObservabilityModal();
+           break;
+       case 'Disaster Recovery':
+           gameState.activePolicies.disasterRecovery = true;
+           logToConsole('Disaster Recovery plan is active. The next damaging Chaos Event will be negated.', 'info');
+           break;
+       case 'Scale Up':
+           gameState.cu += 3;
+           break;
+       case 'Expert Consultation':
+           drawPlayerCard(2);
+           break;
+       case 'Implement GitOps Standard':
+           gameState.activePolicies.gitops = { turns: 5, upkeep: card.upkeep };
+           logToConsole('GitOps Standard policy active.', 'info');
+           break;
+       case 'Standardize Security Posture':
+           gameState.activePolicies.security = { upkeep: card.upkeep };
+           logToConsole('Security Posture policy active.', 'info');
+           break;
+       case 'Automated Auditing':
+           gameState.activePolicies.auditing = { upkeep: card.upkeep };
+           logToConsole('Automated Auditing policy active.', 'info');
+           break;
+   }
 }
 
 function onManualDeployClick() {
-    if (gameState.actions <= 0) {
-        logToConsole('No actions remaining this turn.', 'warn');
-        return;
-    }
-    if (gameState.cu < 3) {
-        logToConsole('Not enough $CU for Manual Deployment.', 'warn');
-        return;
-    }
+   if (gameState.actions <= 0) {
+       logToConsole('No actions remaining this turn.', 'warn');
+       return;
+   }
+   if (gameState.cu < 3) {
+       logToConsole('Not enough $CU for Manual Deployment.', 'warn');
+       return;
+   }
 
-    const project = gameState.activeProject;
-    if (!project) {
-        logToConsole('No active project.', 'warn');
-        return;
-    }
+   const project = gameState.activeProject;
+   if (!project) {
+       logToConsole('No active project.', 'warn');
+       return;
+   }
 
-    const validTargets = Object.entries(gameState.clusters)
-        .filter(([id, cluster]) => 
-            cluster.controlled &&
-            cluster.status === 'stable' &&
-            project.requirements.includes(id) &&
-            !project.completedReqs.includes(id)
-        )
-        .map(([id, cluster]) => id);
+   const validTargets = Object.entries(gameState.clusters)
+       .filter(([id, cluster]) =>
+           cluster.controlled &&
+           cluster.status === 'stable' &&
+           project.requirements.includes(id) &&
+           !project.completedReqs.includes(id)
+       )
+       .map(([id, cluster]) => id);
 
-    if (validTargets.length === 0) {
-        logToConsole('No valid targets for manual deployment. Ensure a required cluster is controlled and stable.', 'warn');
-        return;
-    }
+   if (validTargets.length === 0) {
+       logToConsole('No valid targets for manual deployment. Ensure a required cluster is controlled and stable.', 'warn');
+       return;
+   }
 
-    let buttonsHTML = validTargets.map(id => 
-        `<button class="bg-green-600 hover:bg-green-700 p-2 rounded" data-id="${id}">${id}</button>`
-    ).join('');
+   let buttonsHTML = validTargets.map(id =>
+       `<button class="bg-green-600 hover:bg-green-700 p-2 rounded" data-id="${id}">${id}</button>`
+   ).join('');
 
-    showModal(
-        'Manual Deployment Target',
-        `Select a target location to deploy a project requirement. This will cost 1 Action and 3 $CU, and add 1 Tech Debt.<br><div class="flex flex-wrap gap-2 justify-center mt-4">${buttonsHTML}</div>`,
-        'Cancel',
-        hideModal
-    );
+   showModal(
+       'Manual Deployment Target',
+       `Select a target location to deploy a project requirement. This will cost 1 Action and 3 $CU, and add 1 Tech Debt.<br><div class="flex flex-wrap gap-2 justify-center mt-4">${buttonsHTML}</div>`,
+       'Cancel',
+       hideModal
+   );
 
-    DOMElements.modal.content.querySelectorAll('button[data-id]').forEach(btn => {
-        btn.onclick = () => {
-            const locationId = btn.dataset.id;
-            
-            gameState.actions--;
-            gameState.cu -= 3;
-            gameState.techDebt++;
-            logToConsole(`Manually deploying project requirement to ${locationId}. Tech Debt increases.`, 'action');
-            
-            deployProjectRequirement(locationId);
-            hideModal();
-        };
-    });
+   DOMElements.modal.content.querySelectorAll('button[data-id]').forEach(btn => {
+       btn.onclick = () => {
+           const locationId = btn.dataset.id;
+          
+           gameState.actions--;
+           gameState.cu -= 3;
+           gameState.techDebt++;
+           logToConsole(`Manually deploying project requirement to ${locationId}. Tech Debt increases.`, 'action');
+          
+           deployProjectRequirement(locationId);
+           hideModal();
+       };
+   });
 }
 
 
 function deployProjectRequirement(locationId) {
-    const project = gameState.activeProject;
-    const cluster = gameState.clusters[locationId];
+   const project = gameState.activeProject;
+   const cluster = gameState.clusters[locationId];
 
-    if (!project || !cluster || !cluster.controlled || cluster.status !== 'stable' || !project.requirements.includes(locationId) || project.completedReqs.includes(locationId)) {
-        logToConsole(`Deployment to ${locationId} failed validation.`, 'warn');
-        return;
-    }
-    
-    logToConsole(`Deploying project "${project.name}" to ${locationId}.`, 'action');
-    completeProjectRequirement(locationId);
+   if (!project || !cluster || !cluster.controlled || cluster.status !== 'stable' || !project.requirements.includes(locationId) || project.completedReqs.includes(locationId)) {
+       logToConsole(`Deployment to ${locationId} failed validation.`, 'warn');
+       return;
+   }
+  
+   logToConsole(`Deploying project "${project.name}" to ${locationId}.`, 'action');
+   completeProjectRequirement(locationId);
 }
 
 function completeProjectRequirement(locationId) {
-    const project = gameState.activeProject;
-    const cluster = gameState.clusters[locationId];
+   const project = gameState.activeProject;
+   const cluster = gameState.clusters[locationId];
 
-    project.completedReqs.push(locationId);
-    cluster.projectPart = project.name;
+   project.completedReqs.push(locationId);
+   cluster.projectPart = project.name;
 
-    if (gameState.activePolicies.gitops) {
-        changeStability(5, 'GitOps Standard bonus');
-    }
-    
-    const isComplete = project.requirements.every(req => project.completedReqs.includes(req));
-    if (isComplete) {
-        gameState.projectsCompleted++;
-        changeStability(project.reward.stability, `Project "${project.name}" completed`);
-        
-        // Add Day 2 Ops card to deck
-        if (cardDefinitions.day2[project.id]) {
-            const day2Card = cardDefinitions.day2[project.id];
-            gameState.chaosDeck.push(day2Card);
-            gameState.chaosDeck = shuffle(gameState.chaosDeck);
-            logToConsole(`Day 2 Ops begin for "${project.name}". A new challenge has been added to the Chaos Deck!`, 'warn');
-        }
+   if (gameState.activePolicies.gitops) {
+       changeStability(5, 'GitOps Standard bonus');
+   }
+  
+   const isComplete = project.requirements.every(req => project.completedReqs.includes(req));
+   if (isComplete) {
+       gameState.projectsCompleted++;
+       changeStability(project.reward.stability, `Project "${project.name}" completed`);
+      
+       // Add Day 2 Ops card to deck
+       if (cardDefinitions.day2[project.id]) {
+           const day2Card = cardDefinitions.day2[project.id];
+           gameState.chaosDeck.push(day2Card);
+           gameState.chaosDeck = shuffle(gameState.chaosDeck);
+           logToConsole(`Day 2 Ops begin for "${project.name}". A new challenge has been added to the Chaos Deck!`, 'warn');
+       }
 
-        project.requirements.forEach(req => {
-            if(gameState.clusters[req]) gameState.clusters[req].projectPart = null;
-        });
-        drawNewProject();
-    }
-    renderAll();
-    checkGameOver();
+       project.requirements.forEach(req => {
+           if(gameState.clusters[req]) gameState.clusters[req].projectPart = null;
+       });
+       drawNewProject();
+   }
+   renderAll();
+   checkGameOver();
 }
 
 function promptForTarget(promptText, callback) {
-    const validClusters = Object.entries(gameState.clusters)
-        .filter(([id, cluster]) => cluster.controlled)
-        .map(([id, cluster]) => id);
+   const validClusters = Object.entries(gameState.clusters)
+       .filter(([id, cluster]) => cluster.controlled)
+       .map(([id, cluster]) => id);
 
-    if (validClusters.length === 0) {
-        logToConsole('No valid targets available.', 'warn');
-        return;
-    }
+   if (validClusters.length === 0) {
+       logToConsole('No valid targets available.', 'warn');
+       return;
+   }
 
-    let buttonsHTML = validClusters.map(id => 
-        `<button class="bg-blue-500 hover:bg-blue-600 p-2 rounded" data-id="${id}">${id}</button>`
-    ).join('');
+   let buttonsHTML = validClusters.map(id =>
+       `<button class="bg-blue-500 hover:bg-blue-600 p-2 rounded" data-id="${id}">${id}</button>`
+   ).join('');
 
-    showModal(
-        promptText,
-        `<div class="flex flex-wrap gap-2 justify-center">${buttonsHTML}</div>`,
-        'Cancel',
-        hideModal
-    );
+   showModal(
+       promptText,
+       `<div class="flex flex-wrap gap-2 justify-center">${buttonsHTML}</div>`,
+       'Cancel',
+       hideModal
+   );
 
-    DOMElements.modal.content.querySelectorAll('button[data-id]').forEach(btn => {
-        btn.onclick = () => {
-            const clusterId = btn.dataset.id;
-            const clusterData = { ...gameState.clusters[clusterId], id: clusterId };
-            callback(clusterData);
-            hideModal();
-        };
-    });
+   DOMElements.modal.content.querySelectorAll('button[data-id]').forEach(btn => {
+       btn.onclick = () => {
+           const clusterId = btn.dataset.id;
+           const clusterData = { ...gameState.clusters[clusterId], id: clusterId };
+           callback(clusterData);
+           hideModal();
+       };
+   });
 }
 
 function promptForUnmanagedLocation(promptText, callback) {
-    const unmanagedLocations = Object.entries(gameState.clusters)
-        .filter(([id, cluster]) => !cluster.controlled)
-        .map(([id, cluster]) => id);
+   const unmanagedLocations = Object.entries(gameState.clusters)
+       .filter(([id, cluster]) => !cluster.controlled)
+       .map(([id, cluster]) => id);
 
-    if (unmanagedLocations.length === 0) {
-        logToConsole('No unmanaged locations available to deploy OpenShift.', 'warn');
-        return;
-    }
+   if (unmanagedLocations.length === 0) {
+       logToConsole('No unmanaged locations available to deploy OpenShift.', 'warn');
+       return;
+   }
 
-    let buttonsHTML = unmanagedLocations.map(id => 
-        `<button class="bg-blue-500 hover:bg-blue-600 p-2 rounded" data-id="${id}">${id}</button>`
-    ).join('');
+   let buttonsHTML = unmanagedLocations.map(id =>
+       `<button class="bg-blue-500 hover:bg-blue-600 p-2 rounded" data-id="${id}">${id}</button>`
+   ).join('');
 
-    showModal(
-        promptText,
-        `<div class="flex flex-wrap gap-2 justify-center">${buttonsHTML}</div>`,
-        'Cancel',
-        hideModal
-    );
+   showModal(
+       promptText,
+       `<div class="flex flex-wrap gap-2 justify-center">${buttonsHTML}</div>`,
+       'Cancel',
+       hideModal
+   );
 
-    DOMElements.modal.content.querySelectorAll('button[data-id]').forEach(btn => {
-        btn.onclick = () => {
-            const locationId = btn.dataset.id;
-            callback(locationId);
-            hideModal();
-        };
-    });
+   DOMElements.modal.content.querySelectorAll('button[data-id]').forEach(btn => {
+       btn.onclick = () => {
+           const locationId = btn.dataset.id;
+           callback(locationId);
+           hideModal();
+       };
+   });
 }
 
 
 function showFleetObservabilityModal() {
-    const topCards = gameState.chaosDeck.slice(-3);
-    if (topCards.length === 0) {
-        logToConsole('Chaos deck is empty.', 'warn');
-        return;
-    }
+   const topCards = gameState.chaosDeck.slice(-3);
+   if (topCards.length === 0) {
+       logToConsole('Chaos deck is empty.', 'warn');
+       return;
+   }
 
-    let cardsHTML = topCards.map((card, index) => `
-        <div class="bg-gray-700 p-3 rounded text-left cursor-pointer border-2 border-transparent hover:border-red-500" data-index="${index}">
-            <p class="font-bold text-red-400">${card.name}</p>
-            <p class="text-xs">${card.text}</p>
-        </div>
-    `).join('');
+   let cardsHTML = topCards.map((card, index) => `
+       <div class="bg-gray-700 p-3 rounded text-left cursor-pointer border-2 border-transparent hover:border-red-500" data-index="${index}">
+           <p class="font-bold text-red-400">${card.name}</p>
+           <p class="text-xs">${card.text}</p>
+       </div>
+   `).join('');
 
-    showModal(
-        'Fleet Observability',
-        `You foresee potential futures. Choose one event to avert (move to bottom of deck).<br><div class="mt-4 grid gap-2">${cardsHTML}</div>`,
-        'Do Nothing',
-        hideModal
-    );
+   showModal(
+       'Fleet Observability',
+       `You foresee potential futures. Choose one event to avert (move to bottom of deck).<br><div class="mt-4 grid gap-2">${cardsHTML}</div>`,
+       'Do Nothing',
+       hideModal
+   );
 
-    DOMElements.modal.content.querySelectorAll('div[data-index]').forEach(cardEl => {
-        cardEl.onclick = () => {
-            const cardIndexInTop3 = parseInt(cardEl.dataset.index);
-            const cardIndexInDeck = gameState.chaosDeck.length - 3 + cardIndexInTop3;
-            
-            const [cardToMove] = gameState.chaosDeck.splice(cardIndexInDeck, 1);
-            gameState.chaosDeck.unshift(cardToMove);
-            
-            logToConsole(`Averted a potential "${cardToMove.name}" event through superior observability.`, 'action');
-            hideModal();
-        };
-    });
+   DOMElements.modal.content.querySelectorAll('div[data-index]').forEach(cardEl => {
+       cardEl.onclick = () => {
+           const cardIndexInTop3 = parseInt(cardEl.dataset.index);
+           const cardIndexInDeck = gameState.chaosDeck.length - 3 + cardIndexInTop3;
+          
+           const [cardToMove] = gameState.chaosDeck.splice(cardIndexInDeck, 1);
+           gameState.chaosDeck.unshift(cardToMove);
+          
+           logToConsole(`Averted a potential "${cardToMove.name}" event through superior observability.`, 'action');
+           hideModal();
+       };
+   });
 }
 
 
 // --- GAME LOOP ---
 function nextTurn() {
-    if (gameState.gameOver) return;
+   if (gameState.gameOver) return;
 
-    // --- 1. PRE-TURN PHASE: Update lingering effects ---
-    if (gameState.techDebt > 0) {
-        changeStability(-gameState.techDebt, `Technical Debt`);
-    }
+   // --- 1. PRE-TURN PHASE: Update lingering effects ---
+   if (gameState.techDebt > 0) {
+       changeStability(-gameState.techDebt, `Technical Debt`);
+   }
 
-    let upkeepCost = 0;
-    Object.values(gameState.activePolicies).forEach(policy => {
-        if (policy.upkeep) upkeepCost += policy.upkeep;
-    });
+   let upkeepCost = 0;
+   Object.values(gameState.activePolicies).forEach(policy => {
+       if (policy.upkeep) upkeepCost += policy.upkeep;
+   });
 
-    if (upkeepCost > 0) {
-        if (gameState.cu >= upkeepCost) {
-            gameState.cu -= upkeepCost;
-            logToConsole(`Paid ${upkeepCost} $CU for policy upkeep.`, 'info');
-        } else {
-            logToConsole(`Not enough $CU for policy upkeep! All policies deactivated.`, 'warn');
-            gameState.activePolicies = {};
-        }
-    }
+   if (upkeepCost > 0) {
+       if (gameState.cu >= upkeepCost) {
+           gameState.cu -= upkeepCost;
+           logToConsole(`Paid ${upkeepCost} $CU for policy upkeep.`, 'info');
+       } else {
+           logToConsole(`Not enough $CU for policy upkeep! All policies deactivated.`, 'warn');
+           gameState.activePolicies = {};
+       }
+   }
 
-    if(gameState.activePolicies.auditing) {
-        const hasBadStatus = Object.values(gameState.clusters).some(c => c.controlled && c.status !== 'stable');
-        if (!hasBadStatus) {
-            changeStability(3, 'Automated Auditing bonus');
-        }
-    }
-    if (gameState.activePolicies.gitops) {
-        gameState.activePolicies.gitops.turns--;
-        if (gameState.activePolicies.gitops.turns <= 0) {
-            delete gameState.activePolicies.gitops;
-            logToConsole('GitOps Standard policy has expired.', 'info');
-        }
-    }
+   if(gameState.activePolicies.auditing) {
+       const hasBadStatus = Object.values(gameState.clusters).some(c => c.controlled && c.status !== 'stable');
+       if (!hasBadStatus) {
+           changeStability(3, 'Automated Auditing bonus');
+       }
+   }
+   if (gameState.activePolicies.gitops) {
+       gameState.activePolicies.gitops.turns--;
+       if (gameState.activePolicies.gitops.turns <= 0) {
+           delete gameState.activePolicies.gitops;
+           logToConsole('GitOps Standard policy has expired.', 'info');
+       }
+   }
 
 
-    // --- 2. CHAOS PHASE ---
-    gameState.turn++;
-    logToConsole(`--- Day ${gameState.turn} Begins ---`, 'info');
-    
-    if (gameState.chaosDeck.length > 0) {
-        const event = gameState.chaosDeck.pop();
-        handleChaosEvent(event);
-    } else {
-        logToConsole('The chaos subsides... for now.', 'info');
-    }
+   // --- 2. CHAOS PHASE ---
+   gameState.turn++;
+   logToConsole(`--- Day ${gameState.turn} Begins ---`, 'info');
+  
+   if (gameState.chaosDeck.length > 0) {
+       const event = gameState.chaosDeck.pop();
+       handleChaosEvent(event);
+   } else {
+       logToConsole('The chaos subsides... for now.', 'info');
+   }
 
-    // --- 3. RESOURCE PHASE ---
-    let cuGained = 4; // Increased base CU gain
-    Object.values(gameState.clusters).forEach(cluster => {
-        if (cluster.controlled && cluster.status !== 'certs' && cluster.status !== 'outage') {
-            cuGained++;
-        }
-        if (cluster.status === 'outage') {
-            cluster.status = 'stable';
-        }
-    });
-    gameState.cu += cuGained;
-    logToConsole(`Gained ${cuGained} $CU.`, 'info');
-    
-    drawPlayerCard(1);
-    
-    gameState.actions = gameState.maxActions;
+   // --- 3. RESOURCE PHASE ---
+   let cuGained = 4; // Increased base CU gain
+   Object.values(gameState.clusters).forEach(cluster => {
+       if (cluster.controlled && cluster.status !== 'certs' && cluster.status !== 'outage') {
+           cuGained++;
+       }
+       if (cluster.status === 'outage') {
+           cluster.status = 'stable';
+       }
+   });
+   gameState.cu += cuGained;
+   logToConsole(`Gained ${cuGained} $CU.`, 'info');
+  
+   drawPlayerCard(1);
+  
+   gameState.actions = gameState.maxActions;
 
-    renderAll();
-    checkGameOver();
+   renderAll();
+   checkGameOver();
 }
 
 function handleChaosEvent(event) {
-    logToConsole(`CHAOS EVENT: ${event.name}`, 'chaos');
-    logToConsole(event.text, 'chaos');
+   logToConsole(`CHAOS EVENT: ${event.name}`, 'chaos');
+   logToConsole(event.text, 'chaos');
 
-    if (gameState.activePolicies.disasterRecovery) {
-        if (['drift', 'vulnerability', 'certs', 'failed_deployment', 'day2_ecom'].includes(event.effect)) {
-            logToConsole('Disaster Recovery plan activated! The event is negated.', 'action');
-            changeStability(5, 'Disaster Recovery');
-            gameState.activePolicies.disasterRecovery = false;
-            return;
-        }
-    }
+   if (gameState.activePolicies.disasterRecovery) {
+       if (['drift', 'vulnerability', 'certs', 'failed_deployment', 'day2_ecom'].includes(event.effect)) {
+           logToConsole('Disaster Recovery plan activated! The event is negated.', 'action');
+           changeStability(5, 'Disaster Recovery');
+           gameState.activePolicies.disasterRecovery = false;
+           return;
+       }
+   }
 
-    const controlledClusters = Object.entries(gameState.clusters).filter(([id, c]) => c.controlled);
-    let targetCluster = null;
-    if (controlledClusters.length > 0) {
-        const [id, cluster] = controlledClusters[Math.floor(Math.random() * controlledClusters.length)];
-        targetCluster = { ...cluster, id };
-    }
+   const controlledClusters = Object.entries(gameState.clusters).filter(([id, c]) => c.controlled);
+   let targetCluster = null;
+   if (controlledClusters.length > 0) {
+       const [id, cluster] = controlledClusters[Math.floor(Math.random() * controlledClusters.length)];
+       targetCluster = { ...cluster, id };
+   }
 
-    switch (event.effect) {
-        case 'drift':
-            if (targetCluster) {
-                targetCluster.status = 'drift';
-                gameState.clusters[targetCluster.id].status = 'drift';
-                logToConsole(`${targetCluster.id} is now drifting.`, 'warn');
-            }
-            break;
-        case 'vulnerability':
-            let stabilityLoss = 20;
-            if (gameState.activePolicies.security) {
-                stabilityLoss /= 2;
-                logToConsole('Security Posture policy reduces stability loss.', 'info');
-            }
-            
-            const modalText = `
-                <div class="text-left space-y-4">
-                    <p>A major CVE was announced. How do you respond?</p>
-                    <button class="w-full bg-blue-600 hover:bg-blue-700 p-2 rounded" id="vulnerability-option-1">
-                        <strong>Apply Official Patch:</strong> Cost 3 $CU.
-                    </button>
-                    <button class="w-full bg-yellow-600 hover:bg-yellow-700 p-2 rounded" id="vulnerability-option-2">
-                        <strong>Isolate System:</strong> Cost 0 $CU. A random cluster goes offline for 2 turns.
-                    </button>
-                </div>`;
-            showModal('Security Vulnerability!', modalText, 'Decide Later', hideModal);
+   switch (event.effect) {
+       case 'drift':
+           if (targetCluster) {
+               targetCluster.status = 'drift';
+               gameState.clusters[targetCluster.id].status = 'drift';
+               logToConsole(`${targetCluster.id} is now drifting.`, 'warn');
+           }
+           break;
+       case 'vulnerability':
+           let stabilityLoss = 20;
+           if (gameState.activePolicies.security) {
+               stabilityLoss /= 2;
+               logToConsole('Security Posture policy reduces stability loss.', 'info');
+           }
+          
+           const modalText = `
+               <div class="text-left space-y-4">
+                   <p>A major CVE was announced. How do you respond?</p>
+                   <button class="w-full bg-blue-600 hover:bg-blue-700 p-2 rounded" id="vulnerability-option-1">
+                       <strong>Apply Official Patch:</strong> Cost 3 $CU.
+                   </button>
+                   <button class="w-full bg-yellow-600 hover:bg-yellow-700 p-2 rounded" id="vulnerability-option-2">
+                       <strong>Isolate System:</strong> Cost 0 $CU. A random cluster goes offline for 2 turns.
+                   </button>
+               </div>`;
+           showModal('Security Vulnerability!', modalText, 'Decide Later', hideModal);
 
-            document.getElementById('vulnerability-option-1').onclick = () => {
-                if (gameState.cu >= 3) {
-                    gameState.cu -= 3;
-                    logToConsole('Paid 3 $CU for emergency patching.', 'action');
-                } else {
-                    logToConsole('Not enough $CU for patch, forced to take stability hit.', 'warn');
-                    changeStability(-stabilityLoss, 'Security Vulnerability');
-                }
-                renderAll();
-                hideModal();
-            };
-            document.getElementById('vulnerability-option-2').onclick = () => {
-                if (targetCluster) {
-                    gameState.clusters[targetCluster.id].status = 'certs'; // Re-using certs status for simplicity
-                    logToConsole(`${targetCluster.id} isolated for 2 turns to contain vulnerability.`, 'warn');
-                } else {
-                    logToConsole('No managed clusters to isolate.', 'info');
-                }
-                renderAll();
-                hideModal();
-            };
-            break;
-        case 'certs':
-            if (targetCluster) {
-                targetCluster.status = 'certs';
-                gameState.clusters[targetCluster.id].status = 'certs';
-                showModal('Expired Certificates!', `The cluster at ${targetCluster.id} is offline. Pay 2 $CU to fix it now?`, 'Pay 2 $CU', () => {
-                        if (gameState.cu >= 2) {
-                            gameState.cu -= 2;
-                            gameState.clusters[targetCluster.id].status = 'stable';
-                            logToConsole(`Certs renewed for ${targetCluster.id}.`, 'action');
-                        } else {
-                            logToConsole('Not enough $CU to renew certs.', 'warn');
-                        }
-                        renderAll();
-                        hideModal();
-                    }
-                );
-            }
-            break;
-        case 'outage':
-            if (targetCluster) {
-                targetCluster.status = 'outage';
-                gameState.clusters[targetCluster.id].status = 'outage';
-                logToConsole(`${targetCluster.id} will not produce resources next turn.`, 'warn');
-            }
-            break;
-        case 'budget_cut':
-            const loss = Math.floor(gameState.cu / 2);
-            gameState.cu -= loss;
-            logToConsole(`Lost ${loss} $CU due to budget cuts.`, 'warn');
-            break;
-        case 'meeting':
-            gameState.maxActions = 1;
-            gameState.actions = 1;
-            break;
-        case 'calm':
-            changeStability(5, 'A Moment of Calm');
-            break;
-        case 'failed_deployment':
-            const clustersWithProjects = Object.entries(gameState.clusters).filter(([id, c]) => c.projectPart);
-            if (clustersWithProjects.length > 0) {
-                const [id, cluster] = clustersWithProjects[Math.floor(Math.random() * clustersWithProjects.length)];
-                const projectName = cluster.projectPart;
-                let projectToUpdate = gameState.activeProject;
-                if (!projectToUpdate || projectToUpdate.name !== projectName) {
-                    projectToUpdate = null;
-                }
-                if (projectToUpdate) {
-                    projectToUpdate.completedReqs = projectToUpdate.completedReqs.filter(r => r !== id);
-                    gameState.clusters[id].projectPart = null;
-                    logToConsole(`A deployment failed at ${id}, rolling back progress on "${projectName}".`, 'warn');
-                }
-            }
-            break;
-        case 'day2_ecom':
-            if (gameState.cu >= 4) {
-                gameState.cu -= 4;
-                logToConsole('Paid 4 $CU to handle the traffic spike on the E-Commerce site.', 'action');
-            } else {
-                changeStability(-25, 'E-Commerce Site Overwhelmed');
-            }
-            break;
-    }
-    if (event.effect !== 'meeting') {
-        gameState.maxActions = 2;
-    }
+           document.getElementById('vulnerability-option-1').onclick = () => {
+               if (gameState.cu >= 3) {
+                   gameState.cu -= 3;
+                   logToConsole('Paid 3 $CU for emergency patching.', 'action');
+               } else {
+                   logToConsole('Not enough $CU for patch, forced to take stability hit.', 'warn');
+                   changeStability(-stabilityLoss, 'Security Vulnerability');
+               }
+               renderAll();
+               hideModal();
+           };
+           document.getElementById('vulnerability-option-2').onclick = () => {
+               if (targetCluster) {
+                   gameState.clusters[targetCluster.id].status = 'certs'; // Re-using certs status for simplicity
+                   logToConsole(`${targetCluster.id} isolated for 2 turns to contain vulnerability.`, 'warn');
+               } else {
+                   logToConsole('No managed clusters to isolate.', 'info');
+               }
+               renderAll();
+               hideModal();
+           };
+           break;
+       case 'certs':
+           if (targetCluster) {
+               targetCluster.status = 'certs';
+               gameState.clusters[targetCluster.id].status = 'certs';
+               showModal('Expired Certificates!', `The cluster at ${targetCluster.id} is offline. Pay 2 $CU to fix it now?`, 'Pay 2 $CU', () => {
+                       if (gameState.cu >= 2) {
+                           gameState.cu -= 2;
+                           gameState.clusters[targetCluster.id].status = 'stable';
+                           logToConsole(`Certs renewed for ${targetCluster.id}.`, 'action');
+                       } else {
+                           logToConsole('Not enough $CU to renew certs.', 'warn');
+                       }
+                       renderAll();
+                       hideModal();
+                   }
+               );
+           }
+           break;
+       case 'outage':
+           if (targetCluster) {
+               targetCluster.status = 'outage';
+               gameState.clusters[targetCluster.id].status = 'outage';
+               logToConsole(`${targetCluster.id} will not produce resources next turn.`, 'warn');
+           }
+           break;
+       case 'budget_cut':
+           const loss = Math.floor(gameState.cu / 2);
+           gameState.cu -= loss;
+           logToConsole(`Lost ${loss} $CU due to budget cuts.`, 'warn');
+           break;
+       case 'meeting':
+           gameState.maxActions = 1;
+           gameState.actions = 1;
+           break;
+       case 'calm':
+           changeStability(5, 'A Moment of Calm');
+           break;
+       case 'failed_deployment':
+           const clustersWithProjects = Object.entries(gameState.clusters).filter(([id, c]) => c.projectPart);
+           if (clustersWithProjects.length > 0) {
+               const [id, cluster] = clustersWithProjects[Math.floor(Math.random() * clustersWithProjects.length)];
+               const projectName = cluster.projectPart;
+               let projectToUpdate = gameState.activeProject;
+               if (!projectToUpdate || projectToUpdate.name !== projectName) {
+                   projectToUpdate = null;
+               }
+               if (projectToUpdate) {
+                   projectToUpdate.completedReqs = projectToUpdate.completedReqs.filter(r => r !== id);
+                   gameState.clusters[id].projectPart = null;
+                   logToConsole(`A deployment failed at ${id}, rolling back progress on "${projectName}".`, 'warn');
+               }
+           }
+           break;
+       case 'day2_ecom':
+           if (gameState.cu >= 4) {
+               gameState.cu -= 4;
+               logToConsole('Paid 4 $CU to handle the traffic spike on the E-Commerce site.', 'action');
+           } else {
+               changeStability(-25, 'E-Commerce Site Overwhelmed');
+           }
+           break;
+   }
+   if (event.effect !== 'meeting') {
+       gameState.maxActions = 2;
+   }
 }
 
 function changeStability(amount, reason) {
-    gameState.stability += amount;
-    if (gameState.stability > gameState.maxStability) gameState.stability = gameState.maxStability;
-    if (gameState.stability < 0) gameState.stability = 0;
-    logToConsole(`${reason}: Stability ${amount > 0 ? '+' : ''}${amount}. Current: ${gameState.stability}`, amount > 0 ? 'info' : 'warn');
+   gameState.stability += amount;
+   if (gameState.stability > gameState.maxStability) gameState.stability = gameState.maxStability;
+   if (gameState.stability < 0) gameState.stability = 0;
+   logToConsole(`${reason}: Stability ${amount > 0 ? '+' : ''}${amount}. Current: ${gameState.stability}`, amount > 0 ? 'info' : 'warn');
 }
 
 function checkGameOver() {
-    if (gameState.gameOver) return;
+   if (gameState.gameOver) return;
 
-    let gameOver = false;
-    let title = '';
-    let text = '';
+   let gameOver = false;
+   let title = '';
+   let text = '';
 
-    if (gameState.stability <= 0) {
-        gameOver = true;
-        title = 'Simulation Failed: System Collapse';
-        text = 'System stability dropped to zero. The environment spiraled into unmanageable chaos. Your access has been revoked.';
-    } else if (gameState.turn > gameState.maxTurns) {
-        if (gameState.projectsCompleted >= gameState.targetProjects) {
-            gameOver = true;
-            title = 'Simulation Successful!';
-            text = `You successfully completed ${gameState.projectsCompleted} projects and ended the quarter with ${gameState.stability} stability. You have tamed the chaos and secured your budget!`;
-        } else {
-            gameOver = true;
-            title = 'Simulation Failed: Goals Not Met';
-            text = `The quarter has ended, but you only completed ${gameState.projectsCompleted} of the required ${gameState.targetProjects} projects. Management has decided to go in a "different direction".`;
-        }
-    }
+   if (gameState.stability <= 0) {
+       gameOver = true;
+       title = 'Simulation Failed: System Collapse';
+       text = 'System stability dropped to zero. The environment spiraled into unmanageable chaos. Your access has been revoked.';
+   } else if (gameState.turn > gameState.maxTurns) {
+       if (gameState.projectsCompleted >= gameState.targetProjects) {
+           gameOver = true;
+           title = 'Simulation Successful!';
+           text = `You successfully completed ${gameState.projectsCompleted} projects and ended the quarter with ${gameState.stability} stability. You have tamed the chaos and secured your budget!`;
+       } else {
+           gameOver = true;
+           title = 'Simulation Failed: Goals Not Met';
+           text = `The quarter has ended, but you only completed ${gameState.projectsCompleted} of the required ${gameState.targetProjects} projects. Management has decided to go in a "different direction".`;
+       }
+   }
 
-    if (gameOver) {
-        gameState.gameOver = true;
-        DOMElements.endDayBtn.disabled = true;
-        showModal(title, text, 'Restart Simulation', init);
-    }
+   if (gameOver) {
+       gameState.gameOver = true;
+       DOMElements.endDayBtn.disabled = true;
+       showModal(title, text, 'Restart Simulation', init);
+   }
 }
 
 // --- EVENT LISTENERS ---
 DOMElements.endDayBtn.addEventListener('click', nextTurn);
 DOMElements.rulesBtn.addEventListener('click', () => {
-    showModal('Game Rules', GAME_RULES, 'Close', hideModal);
+   showModal('Game Rules', GAME_RULES, 'Close', hideModal, true);
 });
 DOMElements.manualDeployBtn.addEventListener('click', onManualDeployClick);
 
@@ -1040,3 +1044,6 @@ document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
+
+
+
