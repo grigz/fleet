@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cluster-Chaos: The ACM Simulation</title>
+    <title>Multicluster Ops: The Simulation</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -68,7 +68,7 @@
             <div class="grid grid-cols-2 gap-4 text-center flex-shrink-0">
                 <div>
                     <p class="text-sm text-gray-400">Day</p>
-                    <p id="turn-display" class="text-xl md:text-2xl font-bold">1 / 30</p>
+                    <p id="turn-display" class="text-xl md:text-2xl font-bold">1 / 15</p>
                 </div>
                 <div>
                     <p class="text-sm text-gray-400">Actions</p>
@@ -80,7 +80,7 @@
                 </div>
                  <div>
                     <p class="text-sm text-gray-400">Projects Done</p>
-                    <p id="projects-display" class="text-xl md:text-2xl font-bold">0 / 5</p>
+                    <p id="projects-display" class="text-xl md:text-2xl font-bold">0 / 2</p>
                 </div>
             </div>
 
@@ -145,7 +145,7 @@
     <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center modal-hidden p-4">
         <div id="modal-content" class="bg-gray-800 rounded-lg p-6 sm:p-8 w-full max-w-lg text-center transform">
             <h2 id="modal-title" class="text-2xl font-bold mb-4"></h2>
-            <div id="modal-text" class="text-gray-300 mb-6 text-sm sm:text-base"></div>
+            <div id="modal-text" class="text-gray-300 mb-6 text-sm sm:text-base text-left"></div>
             <button id="modal-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Start Game</button>
             <p id="credit-line" class="text-xs text-gray-500 mt-4"></p>
         </div>
@@ -154,14 +154,15 @@
 <script>
 const GAME_RULES = `
     <div class="text-left space-y-2">
-        <p>You are the Director of Hybrid Cloud Operations. You have <strong>30 days</strong> to complete <strong>5 projects</strong> while keeping the system stable.</p>
+        <p>You are the Director of Hybrid Cloud Operations. You have <strong>15 days</strong> to complete <strong>2 projects</strong> while keeping the system stable.</p>
         <ul class="list-disc list-inside text-sm space-y-1">
-            <li><strong>The Goal:</strong> Complete 5 projects before Day 30, and keep your Stability score above 0.</li>
+            <li><strong>The Goal:</strong> Complete 2 projects before Day 15, and keep your Stability score above 0.</li>
             <li><strong>Each Day:</strong> A random <strong>Chaos Event</strong> will occur. You will then gain resources ($CU) and draw a card.</li>
             <li><strong>Actions:</strong> You have <strong>2 Actions</strong> per day to play cards or use the <strong>Manual Deploy</strong> action.</li>
             <li><strong>Manual Deploy:</strong> For 1 Action and 3 $CU, you can deploy a project requirement without a card. This adds <strong>1 Tech Debt</strong>.</li>
             <li><strong>Technical Debt:</strong> Each point causes 1 Stability loss per day. Use the 'Refactor' card to clear it.</li>
             <li><strong>Policies:</strong> Powerful policy cards have a 1 $CU upkeep cost each day.</li>
+            <li><strong>Ending Your Turn:</strong> Click the blue 'End Day' button at the bottom of the Status Report window on the left. Players on smaller screens may need to scroll to see it.</li>
         </ul>
         <p class="text-center font-bold pt-2">Good luck. You'll need it.</p>
     </div>
@@ -277,7 +278,7 @@ function logToConsole(message, type = 'info') {
 }
 
 function showModal(title, text, buttonText, callback, credit = false) {
-    DOMElements.modal.title.textContent = title;
+    DOMElements.modal.title.innerHTML = title; // Use innerHTML for potential styling
     DOMElements.modal.text.innerHTML = text;
     DOMElements.modal.button.textContent = buttonText;
     DOMElements.modal.button.onclick = callback;
@@ -293,7 +294,7 @@ function hideModal() {
 function init() {
     gameState = {
         turn: 1,
-        maxTurns: 30,
+        maxTurns: 15,
         cu: 5,
         stability: 100,
         maxStability: 100,
@@ -302,10 +303,10 @@ function init() {
         actions: 2,
         maxActions: 2,
         projectsCompleted: 0,
-        targetProjects: 5,
+        targetProjects: 2,
         hand: [],
         handLimit: 5,
-        playerDeck: shuffle([...cardDefinitions.player, ...cardDefinitions.player]),
+        playerDeck: [], // Deck will be initialized below
         projectsDeck: shuffle([...cardDefinitions.projects]),
         chaosDeck: shuffle([...cardDefinitions.chaos, ...cardDefinitions.chaos]),
         activeProject: null,
@@ -313,6 +314,15 @@ function init() {
         activePolicies: {},
         gameOver: false,
     };
+
+    // New deck creation logic to increase On-Prem card frequency by 50%
+    const baseDeck = [...cardDefinitions.player, ...cardDefinitions.player];
+    const onPremCard = cardDefinitions.player.find(c => c.name === 'Provision On-Prem Cluster');
+    if (onPremCard) {
+        baseDeck.push(onPremCard); // Add one more card, increasing total from 2 to 3
+    }
+    gameState.playerDeck = shuffle(baseDeck);
+
 
     clusterLocations.forEach(loc => {
         gameState.clusters[loc.id] = {
@@ -327,7 +337,7 @@ function init() {
 
     renderAll();
     showModal(
-        'Welcome to Cluster-Chaos!',
+        'Welcome to Multicluster Ops: The Simulation!',
         GAME_RULES,
         'Begin Simulation',
         () => {
@@ -364,7 +374,7 @@ function renderStatusPanel() {
 
     renderActiveProject();
     
-    const canManuallyDeploy = gameState.actions > 0 && gameState.cu >= 3;
+    const canManuallyDeploy = gameState.actions > 0 && gameState.cu >= 3 && gameState.activeProject;
     DOMElements.manualDeployBtn.disabled = !canManuallyDeploy;
 }
 
@@ -522,7 +532,7 @@ function onCardClick(cardIndex) {
 function handleCardEffect(card) {
     switch (card.name) {
         case 'Provision OpenShift':
-            promptForUnmanagedLocation('Select a location to deploy OpenShift:', locationId => {
+            promptForUnmanagedLocation('Select a location to deploy OpenShift:', card, locationId => {
                 const targetCluster = gameState.clusters[locationId];
                 if (targetCluster && !targetCluster.controlled) {
                     targetCluster.controlled = true;
@@ -541,11 +551,12 @@ function handleCardEffect(card) {
                 logToConsole(`${card.clusterType} cluster is now online and managed.`, 'info');
             } else {
                 logToConsole(`Cannot provision cluster at ${card.clusterType}. Location is already managed.`, 'warn');
-                gameState.cu += card.cost;
+                gameState.cu += card.cost; // Refund cost if invalid target
+                gameState.actions++; // Refund action
             }
             break;
         case 'Provision Red Hat Device Edge':
-            promptForEdgeLocation('Select an Edge Site for Red Hat Device Edge:', locationId => {
+            promptForEdgeLocation('Select an Edge Site for Red Hat Device Edge:', card, locationId => {
                 const targetEdgeCluster = gameState.clusters[locationId];
                 if (targetEdgeCluster && !targetEdgeCluster.controlled) {
                     targetEdgeCluster.controlled = true;
@@ -555,7 +566,7 @@ function handleCardEffect(card) {
             });
             break;
         case 'GitOps Rollout':
-            promptForTarget('Select a cluster to apply GitOps Rollout:', clusterData => {
+            promptForTarget('Select a cluster to apply GitOps Rollout:', card, clusterData => {
                 const targetCluster = gameState.clusters[clusterData.id];
                 if (targetCluster.status === 'drift') {
                     targetCluster.status = 'stable';
@@ -615,7 +626,7 @@ function onManualDeployClick() {
     }
 
     const validTargets = Object.entries(gameState.clusters)
-        .filter(([id, cluster]) => 
+        .filter(([id, cluster]) =>
             cluster.controlled &&
             cluster.status === 'stable' &&
             project.requirements.includes(id) &&
@@ -628,7 +639,7 @@ function onManualDeployClick() {
         return;
     }
 
-    let buttonsHTML = validTargets.map(id => 
+    let buttonsHTML = validTargets.map(id =>
         `<button class="bg-green-600 hover:bg-green-700 p-2 rounded" data-id="${id}">${id}</button>`
     ).join('');
 
@@ -661,6 +672,9 @@ function deployProjectRequirement(locationId) {
 
     if (!project || !cluster || !cluster.controlled || cluster.status !== 'stable' || !project.requirements.includes(locationId) || project.completedReqs.includes(locationId)) {
         logToConsole(`Deployment to ${locationId} failed validation.`, 'warn');
+        // Since this is called from a card effect, refund the action/cost
+        gameState.actions++;
+        // No cost refund because the card was already paid for, this is the effect failing.
         return;
     }
     
@@ -695,23 +709,33 @@ function completeProjectRequirement(locationId) {
         project.requirements.forEach(req => {
             if(gameState.clusters[req]) gameState.clusters[req].projectPart = null;
         });
-        drawNewProject();
+        
+        if (gameState.projectsCompleted < gameState.targetProjects) {
+            drawNewProject();
+        } else {
+            gameState.activeProject = null;
+        }
     }
     renderAll();
     checkGameOver();
 }
 
-function promptForTarget(promptText, callback) {
+function promptForTarget(promptText, card, callback) {
     const validClusters = Object.entries(gameState.clusters)
         .filter(([id, cluster]) => cluster.controlled)
         .map(([id, cluster]) => id);
 
     if (validClusters.length === 0) {
-        logToConsole('No valid targets available.', 'warn');
+        logToConsole('No valid targets available for this action.', 'warn');
+        // refund action and card because no valid target could be chosen
+        gameState.actions++; 
+        gameState.cu += card.cost;
+        gameState.hand.push(card);
+        renderAll();
         return;
     }
 
-    let buttonsHTML = validClusters.map(id => 
+    let buttonsHTML = validClusters.map(id =>
         `<button class="bg-blue-500 hover:bg-blue-600 p-2 rounded" data-id="${id}">${id}</button>`
     ).join('');
 
@@ -719,7 +743,15 @@ function promptForTarget(promptText, callback) {
         promptText,
         `<div class="flex flex-wrap gap-2 justify-center">${buttonsHTML}</div>`,
         'Cancel',
-        hideModal
+        () => {
+            // refund action and card on cancel
+            gameState.actions++; 
+            gameState.cu += card.cost;
+            gameState.hand.push(card);
+            logToConsole(`"${card.name}" action cancelled.`, 'info');
+            renderAll();
+            hideModal();
+        }
     );
 
     DOMElements.modal.content.querySelectorAll('button[data-id]').forEach(btn => {
@@ -732,17 +764,21 @@ function promptForTarget(promptText, callback) {
     });
 }
 
-function promptForUnmanagedLocation(promptText, callback) {
+function promptForUnmanagedLocation(promptText, card, callback) {
     const unmanagedLocations = Object.entries(gameState.clusters)
         .filter(([id, cluster]) => !cluster.controlled)
         .map(([id, cluster]) => id);
 
     if (unmanagedLocations.length === 0) {
         logToConsole('No unmanaged locations available.', 'warn');
+        gameState.actions++;
+        gameState.cu += card.cost;
+        gameState.hand.push(card);
+        renderAll();
         return;
     }
 
-    let buttonsHTML = unmanagedLocations.map(id => 
+    let buttonsHTML = unmanagedLocations.map(id =>
         `<button class="bg-blue-500 hover:bg-blue-600 p-2 rounded" data-id="${id}">${id}</button>`
     ).join('');
 
@@ -750,7 +786,14 @@ function promptForUnmanagedLocation(promptText, callback) {
         promptText,
         `<div class="flex flex-wrap gap-2 justify-center">${buttonsHTML}</div>`,
         'Cancel',
-        hideModal
+        () => {
+            gameState.actions++;
+            gameState.cu += card.cost;
+            gameState.hand.push(card);
+            logToConsole(`"${card.name}" action cancelled.`, 'info');
+            renderAll();
+            hideModal();
+        }
     );
 
     DOMElements.modal.content.querySelectorAll('button[data-id]').forEach(btn => {
@@ -762,17 +805,21 @@ function promptForUnmanagedLocation(promptText, callback) {
     });
 }
 
-function promptForEdgeLocation(promptText, callback) {
+function promptForEdgeLocation(promptText, card, callback) {
     const unmanagedEdgeLocations = Object.entries(gameState.clusters)
         .filter(([id, cluster]) => (id === 'Edge Site 1' || id === 'Edge Site 2') && !cluster.controlled)
         .map(([id, cluster]) => id);
 
     if (unmanagedEdgeLocations.length === 0) {
         logToConsole('No unmanaged Edge Sites available.', 'warn');
+        gameState.actions++;
+        gameState.cu += card.cost;
+        gameState.hand.push(card);
+        renderAll();
         return;
     }
 
-    let buttonsHTML = unmanagedEdgeLocations.map(id => 
+    let buttonsHTML = unmanagedEdgeLocations.map(id =>
         `<button class="bg-blue-500 hover:bg-blue-600 p-2 rounded" data-id="${id}">${id}</button>`
     ).join('');
 
@@ -780,7 +827,14 @@ function promptForEdgeLocation(promptText, callback) {
         promptText,
         `<div class="flex flex-wrap gap-2 justify-center">${buttonsHTML}</div>`,
         'Cancel',
-        hideModal
+        () => {
+            gameState.actions++;
+            gameState.cu += card.cost;
+            gameState.hand.push(card);
+            logToConsole(`"${card.name}" action cancelled.`, 'info');
+            renderAll();
+            hideModal();
+        }
     );
 
     DOMElements.modal.content.querySelectorAll('button[data-id]').forEach(btn => {
@@ -886,7 +940,7 @@ function nextTurn() {
             cuGained++;
         }
         if (cluster.status === 'outage') {
-            cluster.status = 'stable';
+            cluster.status = 'stable'; // Outage only lasts for one resource phase
         }
     });
     gameState.cu += cuGained;
@@ -908,30 +962,29 @@ function handleChaosEvent(event) {
         if (['drift', 'vulnerability', 'certs', 'failed_deployment', 'day2_ecom'].includes(event.effect)) {
             logToConsole('Disaster Recovery plan activated! The event is negated.', 'action');
             changeStability(5, 'Disaster Recovery');
-            gameState.activePolicies.disasterRecovery = false;
+            delete gameState.activePolicies.disasterRecovery;
             return;
         }
     }
 
     const controlledClusters = Object.entries(gameState.clusters).filter(([id, c]) => c.controlled);
     let targetCluster = null;
+    let targetId = null;
     if (controlledClusters.length > 0) {
-        const [id, cluster] = controlledClusters[Math.floor(Math.random() * controlledClusters.length)];
-        targetCluster = { ...cluster, id };
+        [targetId, targetCluster] = controlledClusters[Math.floor(Math.random() * controlledClusters.length)];
     }
 
     switch (event.effect) {
         case 'drift':
             if (targetCluster) {
-                targetCluster.status = 'drift';
-                gameState.clusters[targetCluster.id].status = 'drift';
-                logToConsole(`${targetCluster.id} is now drifting.`, 'warn');
+                gameState.clusters[targetId].status = 'drift';
+                logToConsole(`${targetId} is now drifting.`, 'warn');
             }
             break;
         case 'vulnerability':
             let stabilityLoss = 20;
             if (gameState.activePolicies.security) {
-                stabilityLoss /= 2;
+                stabilityLoss = Math.floor(stabilityLoss / 2);
                 logToConsole('Security Posture policy reduces stability loss.', 'info');
             }
             
@@ -942,7 +995,7 @@ function handleChaosEvent(event) {
                         <strong>Apply Official Patch:</strong> Cost 3 $CU.
                     </button>
                     <button class="w-full bg-yellow-600 hover:bg-yellow-700 p-2 rounded" id="vulnerability-option-2">
-                        <strong>Isolate System:</strong> Cost 0 $CU. A random cluster goes offline for 2 turns.
+                        <strong>Isolate System:</strong> Cost 0 $CU. A random cluster goes offline for 1 turn.
                     </button>
                 </div>`;
             showModal('Security Vulnerability!', modalText, 'Decide Later', hideModal);
@@ -960,8 +1013,8 @@ function handleChaosEvent(event) {
             };
             document.getElementById('vulnerability-option-2').onclick = () => {
                 if (targetCluster) {
-                    gameState.clusters[targetCluster.id].status = 'certs'; // Re-using certs status for simplicity
-                    logToConsole(`${targetCluster.id} isolated for 2 turns to contain vulnerability.`, 'warn');
+                    gameState.clusters[targetId].status = 'certs'; // Re-using certs status for simplicity
+                    logToConsole(`${targetId} isolated for 1 turn to contain vulnerability.`, 'warn');
                 } else {
                     logToConsole('No managed clusters to isolate.', 'info');
                 }
@@ -971,13 +1024,12 @@ function handleChaosEvent(event) {
             break;
         case 'certs':
             if (targetCluster) {
-                targetCluster.status = 'certs';
-                gameState.clusters[targetCluster.id].status = 'certs';
-                showModal('Expired Certificates!', `The cluster at ${targetCluster.id} is offline. Pay 2 $CU to fix it now?`, 'Pay 2 $CU', () => {
+                gameState.clusters[targetId].status = 'certs';
+                showModal('Expired Certificates!', `The cluster at ${targetId} is offline. Pay 2 $CU to fix it now?`, 'Pay 2 $CU', () => {
                         if (gameState.cu >= 2) {
                             gameState.cu -= 2;
-                            gameState.clusters[targetCluster.id].status = 'stable';
-                            logToConsole(`Certs renewed for ${targetCluster.id}.`, 'action');
+                            gameState.clusters[targetId].status = 'stable';
+                            logToConsole(`Certs renewed for ${targetId}.`, 'action');
                         } else {
                             logToConsole('Not enough $CU to renew certs.', 'warn');
                         }
@@ -985,13 +1037,17 @@ function handleChaosEvent(event) {
                         hideModal();
                     }
                 );
+                // The cancel button is the Do Nothing
+                DOMElements.modal.button.onclick = () => {
+                    logToConsole(`Certs for ${targetId} remain expired.`, 'warn');
+                    hideModal();
+                };
             }
             break;
         case 'outage':
             if (targetCluster) {
-                targetCluster.status = 'outage';
-                gameState.clusters[targetCluster.id].status = 'outage';
-                logToConsole(`${targetCluster.id} will not produce resources next turn.`, 'warn');
+                gameState.clusters[targetId].status = 'outage';
+                logToConsole(`${targetId} will not produce resources next turn.`, 'warn');
             }
             break;
         case 'budget_cut':
@@ -1013,7 +1069,7 @@ function handleChaosEvent(event) {
                 const projectName = cluster.projectPart;
                 let projectToUpdate = gameState.activeProject;
                 if (!projectToUpdate || projectToUpdate.name !== projectName) {
-                    projectToUpdate = null;
+                    projectToUpdate = null; // Should not happen with current logic, but a safeguard
                 }
                 if (projectToUpdate) {
                     projectToUpdate.completedReqs = projectToUpdate.completedReqs.filter(r => r !== id);
@@ -1032,7 +1088,7 @@ function handleChaosEvent(event) {
             break;
     }
     if (event.effect !== 'meeting') {
-        gameState.maxActions = 2;
+        gameState.maxActions = 2; // Reset actions in case of meeting
     }
 }
 
@@ -1050,25 +1106,36 @@ function checkGameOver() {
     let title = '';
     let text = '';
 
-    if (gameState.stability <= 0) {
+    if (gameState.projectsCompleted >= gameState.targetProjects) {
+        gameOver = true;
+        title = 'Simulation Successful!';
+        text = `
+            Your strategic use of automation and policy kept chaos at bay, allowing you to complete your projects while maintaining <strong>${gameState.stability} stability</strong>. You've proven you can manage a complex multicluster environment.<br><br>
+            In the real world, taming this complexity requires a powerful control plane.<br><br>
+            <a href="https://www.redhat.com/en/technologies/management/advanced-cluster-management" target="_blank" class="text-blue-400 hover:underline">Learn how Red Hat can help you manage Kubernetes clusters</a> at scale.
+        `;
+    } else if (gameState.stability <= 0) {
         gameOver = true;
         title = 'Simulation Failed: System Collapse';
-        text = 'System stability dropped to zero. The environment spiraled into unmanageable chaos. Your access has been revoked.';
+        text = `
+            A cascade of unmanaged chaos events and mounting technical debt caused system stability to fall to zero. The environment has suffered a critical failure.<br><br>
+            This kind of cascading failure is a real risk in complex multicluster environments. Visibility and control are essential to prevent it.<br><br>
+            <a href="https://www.redhat.com/en/technologies/management/advanced-cluster-management" target="_blank" class="text-blue-400 hover:underline">Learn how Red Hat can help you manage Kubernetes clusters</a> and avoid chaos.
+        `;
     } else if (gameState.turn > gameState.maxTurns) {
-        if (gameState.projectsCompleted >= gameState.targetProjects) {
-            gameOver = true;
-            title = 'Simulation Successful!';
-            text = `You successfully completed ${gameState.projectsCompleted} projects and ended the quarter with ${gameState.stability} stability. You have tamed the chaos and secured your budget!`;
-        } else {
-            gameOver = true;
-            title = 'Simulation Failed: Goals Not Met';
-            text = `The quarter has ended, but you only completed ${gameState.projectsCompleted} of the required ${gameState.targetProjects} projects. Management has decided to go in a "different direction".`;
-        }
+        gameOver = true;
+        title = 'Simulation Failed: Goals Not Met';
+        text = `
+            While you kept the systems online, project velocity was not high enough to meet business goals, with only <strong>${gameState.projectsCompleted} of ${gameState.targetProjects} projects</strong> completed. The deadline has passed.<br><br>
+            Balancing system stability with the speed of innovation is the ultimate challenge for modern IT.<br><br>
+            <a href="https://www.redhat.com/en/technologies/management/advanced-cluster-management" target="_blank" class="text-blue-400 hover:underline">Learn how Red Hat can help you manage Kubernetes clusters</a> to accelerate development safely.
+        `;
     }
 
     if (gameOver) {
         gameState.gameOver = true;
         DOMElements.endDayBtn.disabled = true;
+        DOMElements.manualDeployBtn.disabled = true;
         showModal(title, text, 'Restart Simulation', init);
     }
 }
@@ -1087,3 +1154,4 @@ document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
+
