@@ -1112,7 +1112,7 @@ function checkGameOver() {
         text = `
             Your strategic use of automation and policy kept chaos at bay, allowing you to complete your projects while maintaining <strong>${gameState.stability} stability</strong>. You've proven you can manage a complex multicluster environment.<br><br>
             In the real world, taming this complexity requires a powerful control plane.<br><br>
-            <a href="https://www.redhat.com/en/technologies/management/advanced-cluster-management" target="_blank" class="text-blue-400 hover:underline">Learn how Red Hat can help you manage Kubernetes clusters</a> at scale.
+            <a href="http://red.ht/fleet" target="_blank" class="text-blue-400 hover:underline">Learn how Red Hat can help you manage Kubernetes clusters</a> at scale.
         `;
     } else if (gameState.stability <= 0) {
         gameOver = true;
@@ -1120,7 +1120,7 @@ function checkGameOver() {
         text = `
             A cascade of unmanaged chaos events and mounting technical debt caused system stability to fall to zero. The environment has suffered a critical failure.<br><br>
             This kind of cascading failure is a real risk in complex multicluster environments. Visibility and control are essential to prevent it.<br><br>
-            <a href="https://www.redhat.com/en/technologies/management/advanced-cluster-management" target="_blank" class="text-blue-400 hover:underline">Learn how Red Hat can help you manage Kubernetes clusters</a> and avoid chaos.
+            <a href="http://red.ht/fleet" target="_blank" class="text-blue-400 hover:underline">Learn how Red Hat can help you manage Kubernetes clusters</a> and avoid chaos.
         `;
     } else if (gameState.turn > gameState.maxTurns) {
         gameOver = true;
@@ -1128,7 +1128,7 @@ function checkGameOver() {
         text = `
             While you kept the systems online, project velocity was not high enough to meet business goals, with only <strong>${gameState.projectsCompleted} of ${gameState.targetProjects} projects</strong> completed. The deadline has passed.<br><br>
             Balancing system stability with the speed of innovation is the ultimate challenge for modern IT.<br><br>
-            <a href="https://www.redhat.com/en/technologies/management/advanced-cluster-management" target="_blank" class="text-blue-400 hover:underline">Learn how Red Hat can help you manage Kubernetes clusters</a> to accelerate development safely.
+            <a href="http://red.ht/fleet" target="_blank" class="text-blue-400 hover:underline">Learn how Red Hat can help you manage Kubernetes clusters</a> to accelerate development safely.
         `;
     }
 
